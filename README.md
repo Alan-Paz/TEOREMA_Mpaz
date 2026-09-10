@@ -5,13 +5,8 @@ PAZ, ALAN. (2026). Tratado sobre a Indexação Algébrica de Sistemas Diatônico
 Tratado sobre a Indexação Algébrica de Sistemas Diatônicos via Matrizes Helicoidais Assimétricas
 Preprint
 September 2026
-<iframe 
-  src="https://teoremampaz.pythonanywhere.com" 
-  width="100%" 
-  height="600" 
-  style="border: none;" 
-  title="Teorema M Paz">
-</iframe>
+https://teoremampaz.pythonanywhere.com" 
+<img width="607" height="317" alt="image" src="https://github.com/user-attachments/assets/ccdaf107-fbdc-4d53-8eea-011520f97351" />
 
 
 1 Read
