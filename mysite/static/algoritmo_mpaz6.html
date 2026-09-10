@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Modelo MPaz - Lousa Sigma, Série Harmônica & Matriz 3D</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      width: 440px;
+      background: #111827;
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 10px;
+      z-index: 10;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+      overflow-y: auto;
+    }
+
+    h1 { font-size: 1rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+    h2 { font-size: 0.8rem; color: #94a3b8; font-weight: 400; }
+
+    .control-group {
+      background: #1f2937;
+      padding: 8px 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .btn-row { display: flex; gap: 6px; }
+
+    label { font-size: 0.75rem; font-weight: 600; color: #f3f4f6; }
+
+    select, input[type="range"], input[type="number"] {
+      width: 100%;
+      padding: 5px;
+      background: #374151;
+      border: 1px solid #4b5563;
+      color: #fff;
+      border-radius: 4px;
+      outline: none;
+      font-size: 0.8rem;
+    }
+
+    .value-display { font-size: 0.7rem; color: #38bdf8; text-align: right; }
+
+    button {
+      flex: 1;
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 8px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 0.75rem;
+    }
+
+    button:hover { background: #0369a1; }
+    button.stop-btn { background: #dc2626; }
+    button.stop-btn:hover { background: #b91c1c; }
+
+    #blackboard-container {
+      background: #06140f;
+      border: 2px solid #27372b;
+      border-radius: 6px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #math-panel {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.7rem;
+      color: #38bdf8;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .math-row { display: flex; justify-content: space-between; }
+    .math-val { color: #facc15; }
+
+    #main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+    }
+
+    #plane-2d-container {
+      width: 38%;
+      background: #0d1322;
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      position: relative;
+    }
+
+    #viewport-3d { flex: 1; position: relative; }
+    canvas { border-radius: 6px; }
+
+    .plane-title {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 0.75rem;
+      color: #38bdf8;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+    }
+
+    #legend {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid #374151;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      pointer-events: none;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    #score-container {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 90px;
+      overflow: hidden;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>Lousa MPaz & Trigonometria</h1>
+      <h2>Cálculo de Sigma ($\Sigma$), Série Harmônica e $\pi_{PAZ}$</h2>
+    </div>
+
+    <div class="control-group">
+      <label>Controle de Tempo:</label>
+      <div class="btn-row">
+        <button id="time-play-btn">▶ Play</button>
+        <button id="time-pause-btn" class="stop-btn">⏸ Pausar</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label for="theta-input">Ângulo ($\theta$) em Graus:</label>
+      <input type="number" id="theta-input" min="0" max="360" step="1" value="0">
+    </div>
+
+    <div class="control-group">
+      <label for="transpose-select">Transposição Musical:</label>
+      <select id="transpose-select">
+        <option value="0">Original (Sol Maior / G)</option>
+        <option value="2">Transpor +2 Semitons (Lá Maior / A)</option>
+        <option value="5">Transpor +5 Semitons (Dó Maior / C)</option>
+        <option value="-2">Transpor -2 Semitons (Fá Maior / F)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="asymmetry-range">Deformação Assimétrica ($\mathbf{A}$):</label>
+      <input type="range" id="asymmetry-range" min="0" max="1" step="0.01" value="0.3">
+      <div class="value-display" id="asymmetry-val">Fator: 0.30</div>
+    </div>
+
+    <div class="control-group">
+      <button id="play-audio-btn">▶ Reproduzir Áudio</button>
+    </div>
+
+    <label>Lousa Interativa: Recorrência $\Sigma$, Harmônica & $\pi_{PAZ}$:</label>
+    <div id="blackboard-container">
+      <canvas id="chalk-canvas" width="380" height="150"></canvas>
+    </div>
+
+    <div id="math-panel">
+      <div class="math-row"><span>Quadrante:</span><span class="math-val" id="m-quad">1º Q</span></div>
+      <div class="math-row"><span>Ângulo ($\theta$):</span><span class="math-val" id="m-deg">0.0°</span></div>
+      <div class="math-row"><span>Seno ($\sen \theta$):</span><span class="math-val" id="m-sen">0.00</span></div>
+      <div class="math-row"><span>Cosseno ($\cos \theta$):</span><span class="math-val" id="m-cos">0.00</span></div>
+      <div class="math-row"><span>Tangente ($\tan \theta$):</span><span class="math-val" id="m-tan">0.00</span></div>
+      <div class="math-row"><span>Cotangente ($\cot \theta$):</span><span class="math-val" id="m-cot">0.00</span></div>
+      <div class="math-row"><span>Cossecante ($\csc \theta$):</span><span class="math-val" id="m-csc">0.00</span></div>
+      <div class="math-row"><span>Recorrência $R_n$:</span><span class="math-val" id="m-paz-rec">1.300</span></div>
+      <div class="math-row"><span>Constante $\pi_{PAZ}$:</span><span class="math-val" id="m-pi-paz">3.1415</span></div>
+      <div class="math-row"><span>Série Harmônica $\Sigma$:</span><span class="math-val" id="m-sigma">1.000</span></div>
+    </div>
+
+    <label>Partitura Transposta:</label>
+    <div id="score-container">
+      <div id="paper"></div>
+    </div>
+  </div>
+
+  <div id="main-container">
+    <div id="plane-2d-container">
+      <div class="plane-title">Plano 2D: Círculo Trigonométrico & Projeção MPaz</div>
+      <canvas id="canvas-2d" width="320" height="320"></canvas>
+    </div>
+
+    <div id="viewport-3d">
+      <div class="plane-title">Plano 3D: Matriz Helicoidal Assimétrica</div>
+      <div id="legend">
+        <div class="legend-item"><div class="dot" style="background:#00d2ff"></div> Hélice Geodésica MPaz</div>
+        <div class="legend-item"><div class="dot" style="background:#ff0055"></div> Triângulo Trigonométrico</div>
+        <div class="legend-item"><div class="dot" style="background:#facc15"></div> Operador $\Sigma$ & Flutuantes</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const notesBachOriginal = [
+      { key: "g/4", duration: "q", pitchClass: 7 },
+      { key: "a/4", duration: "8", pitchClass: 9 },
+      { key: "b/4", duration: "8", pitchClass: 11 },
+      { key: "c/5", duration: "q", pitchClass: 0 },
+      { key: "d/5", duration: "q", pitchClass: 2 },
+      { key: "g/4", duration: "q", pitchClass: 7 },
+      { key: "g/4", duration: "q", pitchClass: 7 }
+    ];
+
+    const pitchNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    function transposeKey(keyStr, semitones) {
+      const parts = keyStr.split('/');
+      const name = parts[0].toUpperCase();
+      let octave = parseInt(parts[1]);
+      let basePitch = pitchNames.indexOf(name);
+      if (basePitch === -1) {
+        if (name.includes("B")) basePitch = pitchNames.indexOf(name[0]) - 1;
+        if (name.includes("#")) basePitch = pitchNames.indexOf(name[0]) + 1;
+      }
+      let newPitch = basePitch + semitones;
+      while (newPitch >= 12) { newPitch -= 12; octave++; }
+      while (newPitch < 0) { newPitch += 12; octave--; }
+      let noteName = pitchNames[newPitch].toLowerCase();
+      if (noteName.length > 1) noteName = noteName[0] + "#";
+      return { key: `${noteName}/${octave}`, pitchClass: newPitch, octave: octave };
+    }
+
+    function renderScore(semitones) {
+      const div = document.getElementById("paper");
+      div.innerHTML = "";
+      const { Renderer, Stave, StaveNote, Accidental, Formatter } = Vex.Flow;
+      const renderer = new Renderer(div, Renderer.Backends.SVG);
+      renderer.resize(280, 80);
+      const context = renderer.getContext();
+      const stave = new Stave(5, 0, 260);
+      stave.addClef("treble").addTimeSignature("3/4");
+      stave.setContext(context).draw();
+
+      const vexNotes = notesBachOriginal.map(note => {
+        const transposed = transposeKey(note.key, semitones);
+        const staveNote = new StaveNote({ clef: "treble", keys: [transposed.key], duration: note.duration });
+        if (transposed.key.includes("#")) staveNote.addModifier(new Accidental("#"));
+        return staveNote;
+      });
+      Formatter.FormatAndDraw(context, stave, vexNotes);
+    }
+
+    let angleParam = 0;
+    let isTimeRunning = true;
+    let currentAsymmetry = 0.3;
+    let currentSemitones = 0;
+    let harmonicStep = 1;
+    let harmonicSum = 1;
+
+    // --- LOUSA ANIMADA (CÁLCULO DE SIGMA, MATRIZ E HARMÔNICA) ---
+    const chalkCanvas = document.getElementById('chalk-canvas');
+    const chalkCtx = chalkCanvas.getContext('2d');
+    let chalkProgress = 0;
+
+    function drawChalkMatrix() {
+      chalkCtx.clearRect(0, 0, chalkCanvas.width, chalkCanvas.height);
+
+      chalkCtx.strokeStyle = "rgba(240, 240, 240, 0.9)";
+      chalkCtx.fillStyle = "rgba(240, 240, 240, 0.9)";
+      chalkCtx.lineWidth = 1.5;
+      chalkCtx.font = "12px 'Courier New', monospace";
+
+      if (isTimeRunning) chalkProgress = (chalkProgress + 0.008) % 1;
+
+      const p = chalkProgress;
+      const cosVal = Math.cos(angleParam).toFixed(2);
+      const senVal = Math.sin(angleParam).toFixed(2);
+      const pazRec = (1 + currentAsymmetry * Math.sin(3 * angleParam)).toFixed(2);
+      const piPaz = (Math.PI * (1 + 0.05 * currentAsymmetry * Math.cos(2 * angleParam))).toFixed(3);
+
+      // Colchetes da Matriz
+      chalkCtx.beginPath();
+      chalkCtx.moveTo(15, 15); chalkCtx.lineTo(8, 15);
+      chalkCtx.lineTo(8, 15 + 120 * Math.min(1, p * 2));
+      if (p > 0.5) chalkCtx.lineTo(15, 135);
+
+      if (p > 0.3) {
+        chalkCtx.moveTo(365, 15); chalkCtx.lineTo(372, 15);
+        chalkCtx.lineTo(372, 15 + 120 * Math.min(1, (p - 0.3) * 2));
+        chalkCtx.lineTo(365, 135);
+      }
+      chalkCtx.stroke();
+
+      // Linhas da Matriz com Série Harmônica e Operadores
+      if (p > 0.1) chalkCtx.fillText(`[ M11: cosθ = ${cosVal}`, 20, 35);
+      if (p > 0.25) chalkCtx.fillText(`M12: -senθ = ${(-senVal).toFixed(2)} ]`, 195, 35);
+
+      // Resolução da Recorrência PAZ
+      if (p > 0.4) {
+        chalkCtx.fillStyle = "#facc15";
+        chalkCtx.fillText(`[ R_n = 1 + A·sen(3θ) = ${pazRec}`, 20, 65);
+        chalkCtx.fillText(`π_paz = ${piPaz} ]`, 195, 65);
+      }
+
+      // Resolução do Operador Sigma & Série Harmônica até Infinito
+      if (p > 0.6) {
+        chalkCtx.fillStyle = "#38bdf8";
+        chalkCtx.fillText(`[ Σ 1/n = 1 + 1/2 + 1/3 + ... + 1/${harmonicStep}`, 20, 95);
+      }
+
+      if (p > 0.8) {
+        chalkCtx.fillStyle = "#34d399";
+        chalkCtx.fillText(`  Suma Σ_∞ = ${harmonicSum.toFixed(4)}`, 20, 120);
+        chalkCtx.fillText(`(Recorrência MPaz) ]`, 195, 120);
+      }
+    }
+
+    // --- CANVA 2D ---
+    const canvas2D = document.getElementById('canvas-2d');
+    const ctx2D = canvas2D.getContext('2d');
+    const cx = canvas2D.width / 2;
+    const cy = canvas2D.height / 2;
+    const radius = 90;
+
+    function drawPlane2D() {
+      ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+
+      ctx2D.strokeStyle = '#334155';
+      ctx2D.lineWidth = 1;
+      ctx2D.beginPath();
+      ctx2D.moveTo(0, cy); ctx2D.lineTo(canvas2D.width, cy);
+      ctx2D.moveTo(cx, 0); ctx2D.lineTo(cx, canvas2D.height);
+      ctx2D.stroke();
+
+      ctx2D.strokeStyle = '#00d2ff';
+      ctx2D.lineWidth = 2;
+      ctx2D.beginPath();
+      for (let a = 0; a <= Math.PI * 2; a += 0.02) {
+        const rDeformed = radius * (1 + currentAsymmetry * Math.sin(3 * a));
+        const x = cx + rDeformed * Math.cos(a);
+        const y = cy - rDeformed * Math.sin(a);
+        if (a === 0) ctx2D.moveTo(x, y); else ctx2D.lineTo(x, y);
+      }
+      ctx2D.closePath();
+      ctx2D.stroke();
+
+      const normAngle = ((angleParam % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const rCurrent = radius * (1 + currentAsymmetry * Math.sin(3 * normAngle));
+      const px = cx + rCurrent * Math.cos(normAngle);
+      const py = cy - rCurrent * Math.sin(normAngle);
+
+      ctx2D.strokeStyle = '#ff0055';
+      ctx2D.beginPath(); ctx2D.moveTo(cx, cy); ctx2D.lineTo(px, py); ctx2D.stroke();
+
+      ctx2D.strokeStyle = '#10b981';
+      ctx2D.beginPath(); ctx2D.moveTo(cx, cy); ctx2D.lineTo(px, cy); ctx2D.stroke();
+
+      ctx2D.strokeStyle = '#38bdf8';
+      ctx2D.beginPath(); ctx2D.moveTo(px, cy); ctx2D.lineTo(px, py); ctx2D.stroke();
+
+      ctx2D.fillStyle = '#facc15';
+      ctx2D.beginPath(); ctx2D.arc(px, py, 4, 0, Math.PI * 2); ctx2D.fill();
+    }
+
+    // --- THREE.JS 3D ---
+    const viewport3D = document.getElementById('viewport-3d');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f19);
+
+    const camera = new THREE.PerspectiveCamera(45, viewport3D.clientWidth / viewport3D.clientHeight, 0.1, 1000);
+    camera.position.set(18, 12, 25);
+
+    const renderer3D = new THREE.WebGLRenderer({ antialias: true });
+    renderer3D.setSize(viewport3D.clientWidth, viewport3D.clientHeight);
+    viewport3D.appendChild(renderer3D.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer3D.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const dirLight = new THREE.DirectionalLight(0x38bdf8, 1);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    let helixMesh, notesGroup = new THREE.Group();
+    let hypLine3D, adjLine3D, oppLine3D;
+    scene.add(notesGroup);
+
+    function setupTriangle3D() {
+      hypLine3D = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xff0055 }));
+      adjLine3D = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x10b981 }));
+      oppLine3D = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x38bdf8 }));
+      scene.add(hypLine3D); scene.add(adjLine3D); scene.add(oppLine3D);
+    }
+
+    function updateHelix() {
+      if (helixMesh) scene.remove(helixMesh);
+      notesGroup.clear();
+
+      const points = [];
+      const turns = 4;
+      const pointsPerTurn = 60;
+      const totalPoints = turns * pointsPerTurn;
+      const baseRadius = 5;
+      const pitchHeight = 3.5;
+
+      for (let i = 0; i <= totalPoints; i++) {
+        const t = (i / pointsPerTurn) * Math.PI * 2;
+        const r = baseRadius * (1 + currentAsymmetry * Math.sin(3 * t));
+        const x = r * Math.cos(t);
+        const z = r * Math.sin(t);
+        const y = (t / (Math.PI * 2)) * pitchHeight - 5;
+        points.push(new THREE.Vector3(x, y, z));
+      }
+
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tubeGeo = new THREE.TubeGeometry(curve, 200, 0.15, 8, false);
+      const tubeMat = new THREE.MeshStandardMaterial({ color: 0x00d2ff });
+      helixMesh = new THREE.Mesh(tubeGeo, tubeMat);
+      scene.add(helixMesh);
+
+      notesBachOriginal.forEach((note) => {
+        const transposed = transposeKey(note.key, currentSemitones);
+        const angle = (transposed.pitchClass / 12) * Math.PI * 2;
+        const octaveOffset = (transposed.octave - 4) * pitchHeight;
+        const r = baseRadius * (1 + currentAsymmetry * Math.sin(3 * angle));
+        const x = r * Math.cos(angle);
+        const z = r * Math.sin(angle);
+        const y = (angle / (Math.PI * 2)) * pitchHeight - 5 + octaveOffset;
+
+        const noteGeo = new THREE.SphereGeometry(0.35, 16, 16);
+        const noteMat = new THREE.MeshStandardMaterial({ color: 0xff0055 });
+        const noteSphere = new THREE.Mesh(noteGeo, noteMat);
+        noteSphere.position.set(x, y, z);
+        notesGroup.add(noteSphere);
+      });
+    }
+
+    let audioCtx = null;
+    let isPlayingAudio = false;
+
+    function pitchToFrequency(pitchClass, octave) {
+      const midiNote = (octave + 1) * 12 + pitchClass;
+      return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    async function playBachSequence() {
+      if (isPlayingAudio) return;
+      isPlayingAudio = true;
+      const btn = document.getElementById('play-audio-btn');
+      btn.innerText = "⏹ Parar Áudio";
+      btn.style.background = "#ef4444";
+
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      let currentTime = audioCtx.currentTime;
+
+      notesBachOriginal.forEach((note) => {
+        const transposed = transposeKey(note.key, currentSemitones);
+        const freq = pitchToFrequency(transposed.pitchClass, transposed.octave);
+        const duration = note.duration === "q" ? 0.6 : 0.3;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, currentTime);
+        gain.gain.setValueAtTime(0, currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration - 0.05);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(currentTime);
+        osc.stop(currentTime + duration);
+        currentTime += duration;
+      });
+
+      setTimeout(() => {
+        isPlayingAudio = false;
+        btn.innerText = "▶ Reproduzir Áudio";
+        btn.style.background = "#0284c7";
+      }, (currentTime - audioCtx.currentTime) * 1000);
+    }
+
+    document.getElementById('time-play-btn').addEventListener('click', () => { isTimeRunning = true; });
+    document.getElementById('time-pause-btn').addEventListener('click', () => { isTimeRunning = false; });
+
+    document.getElementById('theta-input').addEventListener('input', (e) => {
+      const deg = parseFloat(e.target.value) || 0;
+      angleParam = deg * Math.PI / 180;
+    });
+
+    document.getElementById('transpose-select').addEventListener('change', (e) => {
+      currentSemitones = parseInt(e.target.value);
+      renderScore(currentSemitones);
+      updateHelix();
+    });
+
+    document.getElementById('asymmetry-range').addEventListener('input', (e) => {
+      currentAsymmetry = parseFloat(e.target.value);
+      document.getElementById('asymmetry-val').innerText = `Fator: ${currentAsymmetry.toFixed(2)}`;
+      updateHelix();
+    });
+
+    document.getElementById('play-audio-btn').addEventListener('click', playBachSequence);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = viewport3D.clientWidth / viewport3D.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer3D.setSize(viewport3D.clientWidth, viewport3D.clientHeight);
+    });
+
+    renderScore(0);
+    setupTriangle3D();
+    updateHelix();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+
+      if (isTimeRunning) {
+        angleParam += 0.005;
+        document.getElementById('theta-input').value = ((angleParam * 180 / Math.PI) % 360).toFixed(0);
+      }
+
+      const normAngle = ((angleParam % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const deg = (normAngle * 180 / Math.PI).toFixed(1);
+
+      let quadStr = "1º Q";
+      if (normAngle >= Math.PI / 2 && normAngle < Math.PI) quadStr = "2º Q";
+      else if (normAngle >= Math.PI && normAngle < 3 * Math.PI / 2) quadStr = "3º Q";
+      else if (normAngle >= 3 * Math.PI / 2) quadStr = "4º Q";
+
+      const cosVal = Math.cos(normAngle);
+      const senVal = Math.sin(normAngle);
+      const tanVal = Math.abs(cosVal) > 0.001 ? senVal / cosVal : Infinity;
+      const cotVal = Math.abs(senVal) > 0.001 ? cosVal / senVal : Infinity;
+      const cscVal = Math.abs(senVal) > 0.001 ? 1 / senVal : Infinity;
+
+      const pazRec = 1 + currentAsymmetry * Math.sin(3 * normAngle);
+      const piPaz = Math.PI * (1 + 0.05 * currentAsymmetry * Math.cos(2 * normAngle));
+
+      if (isTimeRunning) {
+        harmonicStep = Math.floor((normAngle / (Math.PI * 2)) * 20) + 1;
+        harmonicSum += (1 / harmonicStep) * 0.0005;
+      }
+
+      document.getElementById('m-quad').innerText = quadStr;
+      document.getElementById('m-deg').innerText = `${deg}°`;
+      document.getElementById('m-sen').innerText = senVal.toFixed(2);
+      document.getElementById('m-cos').innerText = cosVal.toFixed(2);
+      document.getElementById('m-tan').innerText = isFinite(tanVal) ? tanVal.toFixed(2) : "∞";
+      document.getElementById('m-cot').innerText = isFinite(cotVal) ? cotVal.toFixed(2) : "∞";
+      document.getElementById('m-csc').innerText = isFinite(cscVal) ? cscVal.toFixed(2) : "∞";
+      document.getElementById('m-paz-rec').innerText = pazRec.toFixed(3);
+      document.getElementById('m-pi-paz').innerText = piPaz.toFixed(4);
+      document.getElementById('m-sigma').innerText = harmonicSum.toFixed(3);
+
+      drawChalkMatrix();
+      drawPlane2D();
+
+      const r3d = 5 * pazRec;
+      const px3d = r3d * Math.cos(normAngle);
+      const pz3d = r3d * Math.sin(normAngle);
+      const py3d = (normAngle / (Math.PI * 2)) * 3.5 - 5;
+
+      hypLine3D.geometry.setFromPoints([new THREE.Vector3(0, py3d, 0), new THREE.Vector3(px3d, py3d, pz3d)]);
+      adjLine3D.geometry.setFromPoints([new THREE.Vector3(0, py3d, 0), new THREE.Vector3(px3d, py3d, 0)]);
+      oppLine3D.geometry.setFromPoints([new THREE.Vector3(px3d, py3d, 0), new THREE.Vector3(px3d, py3d, pz3d)]);
+
+      if (isTimeRunning) {
+        if (helixMesh) helixMesh.rotation.y += 0.0005;
+        notesGroup.rotation.y += 0.0005;
+      }
+
+      renderer3D.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

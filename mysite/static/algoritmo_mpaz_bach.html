@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matriz Helicoidal Assimétrica (MPaz) - Bach Integral</title>
+  
+  <!-- Biblioteca VexFlow para renderização de notação musical -->
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+  
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: #1e293b;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      max-width: 900px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 5px;
+      color: #38bdf8;
+    }
+
+    h2 {
+      font-size: 0.95rem;
+      font-weight: normal;
+      color: #94a3b8;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .author-info {
+      font-size: 0.8rem;
+      color: #f59e0b;
+      margin-bottom: 15px;
+      line-height: 1.4;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    select, button {
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    select {
+      background-color: #334155;
+      color: #ffffff;
+    }
+
+    button.btn-render {
+      background-color: #0284c7;
+      color: white;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+
+    button.btn-render:hover {
+      background-color: #0369a1;
+    }
+
+    button.btn-play {
+      background-color: #16a34a;
+      color: white;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+
+    button.btn-play:hover {
+      background-color: #15803d;
+    }
+
+    button.btn-stop {
+      background-color: #dc2626;
+      color: white;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      background-color: #64748b;
+      cursor: not-allowed;
+    }
+
+    #partitura-container {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      max-height: 380px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .matrix-log {
+      margin-top: 20px;
+      text-align: left;
+      background-color: #0f172a;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #4ade80;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .badge {
+      background-color: #0369a1;
+      color: #e0f2fe;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Indexação Helicoidal (M. Paz) <span class="badge">J.S. Bach</span></h1>
+    <div class="author-info">
+      Teoria da Indexação Algébrica de Sistemas Helicoidais Diatônicos Assimétricos<br>
+      <strong>Autor:</strong> Alan Aparecido da Silva Paz (Engenheiro em Computação, Matemático e Músico)
+    </div>
+
+    <div class="controls">
+      <select id="obraSelect" onchange="executarAlgoritmo()">
+        <option value="minueto">Minueto em Sol Maior, BWV Anh. 114 (Completo)</option>
+        <option value="bourree">Bourrée em Mi Menor, BWV 996 (Completa)</option>
+        <option value="preludio">Prelúdio Nº 1 em Dó Maior, BWV 846 (Completo)</option>
+      </select>
+
+      <select id="transposicao" onchange="executarAlgoritmo()">
+        <option value="0">Tom Original</option>
+        <option value="2">Transpor +2 Semitons</option>
+        <option value="-2">Transpor -2 Semitons</option>
+        <option value="7">Transpor +7 Semitons</option>
+      </select>
+
+      <button class="btn-render" onclick="executarAlgoritmo()">Analisar & Renderizar</button>
+      <button class="btn-play" id="btnPlay" onclick="tocarVioloncelo()">▶ Tocar Obra</button>
+      <button class="btn-stop" id="btnStop" onclick="pararAudio()" disabled>■ Parar</button>
+    </div>
+
+    <!-- Contêiner da Partitura -->
+    <div id="partitura-container"></div>
+
+    <!-- Saída do Registro de Coordenadas MPaz -->
+    <div class="matrix-log" id="logMatriz">Aguardando processamento...</div>
+  </div>
+
+  <script>
+    // =============================================================
+    // 1. REPOSITÓRIO DE OBRAS INTEIRAS DE J.S. BACH
+    // =============================================================
+
+    const OBRAS_BACH = {
+      minueto: {
+        titulo: "Minueto em Sol Maior (BWV Anh. 114)",
+        fFormula: "3/4",
+        tempoBPM: 110,
+        notas: [
+          // Parte A
+          { nota: "d/5", duracao: "4" }, { nota: "g/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "c/5", duracao: "8" },
+          { nota: "d/5", duracao: "4" }, { nota: "g/4", duracao: "4" }, { nota: "g/4", duracao: "4" },
+          { nota: "e/5", duracao: "4" }, { nota: "c/5", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "f#/5", duracao: "8" },
+          { nota: "g/5", duracao: "4" }, { nota: "g/4", duracao: "4" }, { nota: "g/4", duracao: "4" },
+          { nota: "c/5", duracao: "4" }, { nota: "d/5", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "a/4", duracao: "8" },
+          { nota: "b/4", duracao: "4" }, { nota: "c/5", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "g/4", duracao: "8" },
+          { nota: "f#/4", duracao: "4" }, { nota: "g/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "g/4", duracao: "8" },
+          { nota: "a/4", duracao: "2h" },
+          
+          // Repetição Parte A
+          { nota: "d/5", duracao: "4" }, { nota: "g/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "c/5", duracao: "8" },
+          { nota: "d/5", duracao: "4" }, { nota: "g/4", duracao: "4" }, { nota: "g/4", duracao: "4" },
+          { nota: "e/5", duracao: "4" }, { nota: "c/5", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "f#/5", duracao: "8" },
+          { nota: "g/5", duracao: "4" }, { nota: "g/4", duracao: "4" }, { nota: "g/4", duracao: "4" },
+          { nota: "c/5", duracao: "4" }, { nota: "d/5", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "a/4", duracao: "8" },
+          { nota: "b/4", duracao: "4" }, { nota: "c/5", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "g/4", duracao: "8" },
+          { nota: "a/4", duracao: "4" }, { nota: "b/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "f#/4", duracao: "8" },
+          { nota: "g/4", duracao: "2h" },
+
+          // Parte B
+          { nota: "b/5", duracao: "4" }, { nota: "g/5", duracao: "8" }, { nota: "a/5", duracao: "8" }, { nota: "b/5", duracao: "8" }, { nota: "g/5", duracao: "8" },
+          { nota: "a/5", duracao: "4" }, { nota: "d/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "f#/5", duracao: "8" }, { nota: "d/5", duracao: "8" },
+          { nota: "g/5", duracao: "4" }, { nota: "e/5", duracao: "8" }, { nota: "f#/5", duracao: "8" }, { nota: "g/5", duracao: "8" }, { nota: "d/5", duracao: "8" },
+          { nota: "c#/5", duracao: "4" }, { nota: "b/4", duracao: "8" }, { nota: "c#/5", duracao: "8" }, { nota: "a/4", duracao: "4" },
+          { nota: "a/4", duracao: "8" }, { nota: "b/4", duracao: "8" }, { nota: "c#/5", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "f#/5", duracao: "8" },
+          { nota: "g/5", duracao: "4" }, { nota: "f#/5", duracao: "4" }, { nota: "e/5", duracao: "4" },
+          { nota: "f#/5", duracao: "4" }, { nota: "a/4", duracao: "4" }, { nota: "c#/5", duracao: "4" },
+          { nota: "d/5", duracao: "2h" }
+        ]
+      },
+
+      bourree: {
+        titulo: "Bourrée em Mi Menor (BWV 996)",
+        fFormula: "2/2",
+        tempoBPM: 140,
+        notas: [
+          // Anacruse
+          { nota: "e/4", duracao: "8" }, { nota: "f#/4", duracao: "8" },
+          // Seção A
+          { nota: "g/4", duracao: "4" }, { nota: "f#/4", duracao: "4" }, { nota: "e/4", duracao: "4" }, { nota: "d#/4", duracao: "4" },
+          { nota: "e/4", duracao: "4" }, { nota: "f#/4", duracao: "4" }, { nota: "b/3", duracao: "2" },
+          { nota: "e/4", duracao: "4" }, { nota: "g/4", duracao: "4" }, { nota: "f#/4", duracao: "4" }, { nota: "e/4", duracao: "4" },
+          { nota: "d#/4", duracao: "2" }, { nota: "b/3", duracao: "4" }, { nota: "e/4", duracao: "8" }, { nota: "f#/4", duracao: "8" },
+          { nota: "g/4", duracao: "4" }, { nota: "a/4", duracao: "4" }, { nota: "b/4", duracao: "4" }, { nota: "c/5", duracao: "4" },
+          { nota: "b/4", duracao: "4" }, { nota: "a/4", duracao: "4" }, { nota: "g/4", duracao: "2" },
+          { nota: "f#/4", duracao: "4" }, { nota: "e/4", duracao: "4" }, { nota: "d#/4", duracao: "4" }, { nota: "e/4", duracao: "8" }, { nota: "f#/4", duracao: "8" },
+          { nota: "e/4", duracao: "1" },
+
+          // Seção B
+          { nota: "g/4", duracao: "4" }, { nota: "a/4", duracao: "4" },
+          { nota: "b/4", duracao: "4" }, { nota: "c/5", duracao: "4" }, { nota: "d/5", duracao: "4" }, { nota: "c/5", duracao: "4" },
+          { nota: "b/4", duracao: "4" }, { nota: "a/4", duracao: "4" }, { nota: "g/4", duracao: "2" },
+          { nota: "a/4", duracao: "4" }, { nota: "b/4", duracao: "4" }, { nota: "c/5", duracao: "4" }, { nota: "b/4", duracao: "4" },
+          { nota: "a/4", duracao: "2" }, { nota: "f#/4", duracao: "4" }, { nota: "g/4", duracao: "8" }, { nota: "a/4", duracao: "8" },
+          { nota: "b/4", duracao: "4" }, { nota: "e/4", duracao: "4" }, { nota: "g/4", duracao: "4" }, { nota: "f#/4", duracao: "4" },
+          { nota: "e/4", duracao: "1" }
+        ]
+      },
+
+      preludio: {
+        titulo: "Prelúdio Nº 1 em Dó Maior (BWV 846)",
+        fFormula: "4/4",
+        tempoBPM: 75,
+        notas: [
+          // Arpejo C maior (Medida 1)
+          { nota: "c/4", duracao: "8" }, { nota: "e/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" },
+          { nota: "c/4", duracao: "8" }, { nota: "e/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" },
+          // Arpejo Dm7/C (Medida 2)
+          { nota: "c/4", duracao: "8" }, { nota: "d/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" },
+          { nota: "c/4", duracao: "8" }, { nota: "d/4", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" }, { nota: "a/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" },
+          // Arpejo G7/B (Medida 3)
+          { nota: "b/3", duracao: "8" }, { nota: "d/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" },
+          { nota: "b/3", duracao: "8" }, { nota: "d/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "d/5", duracao: "8" }, { nota: "f/5", duracao: "8" },
+          // Arpejo C maior (Medida 4)
+          { nota: "c/4", duracao: "8" }, { nota: "e/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" },
+          { nota: "c/4", duracao: "8" }, { nota: "e/4", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" }, { nota: "g/4", duracao: "8" }, { nota: "c/5", duracao: "8" }, { nota: "e/5", duracao: "8" }
+        ]
+      }
+    };
+
+    const MAPA_NOTAS_MIDI = {
+      "c": 0, "c#": 1, "db": 1, "d": 2, "d#": 3, "eb": 3, "e": 4, "f": 5, 
+      "f#": 6, "gb": 6, "g": 7, "g#": 8, "ab": 8, "a": 9, "a#": 10, "bb": 10, "b": 11
+    };
+
+    let freqsTemaAtuais = [];
+    let duracoesTemaAtuais = [];
+    let audioCtx = null;
+    let agendadorAudio = [];
+
+    function notaParaFrequencia(stringNota, semitonsOffset = 0) {
+      const [puro, oitava] = stringNota.split('/');
+      const semitomBase = MAPA_NOTAS_MIDI[puro];
+      const numeroMidi = (parseInt(oitava) + 1) * 12 + semitomBase + semitonsOffset;
+      return 440 * Math.pow(2, (numeroMidi - 69) / 12);
+    }
+
+    function frequenciaParaNotaVexFlow(freq) {
+      const nomes = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
+      const midi = Math.round(69 + 12 * Math.log2(freq / 440));
+      const nomeNota = nomes[(midi % 12 + 12) % 12];
+      const oitava = Math.floor(midi / 12) - 1;
+      return `${nomeNota}/${oitava}`;
+    }
+
+    // =============================================================
+    // 2. TEORIA DE INDEXAÇÃO ALGEBRICA DE SISTEMAS HELICOIDAIS
+    //    DIATÔNICOS ASSIMÉTRICOS (AUTOR: ALAN APARECIDO DA SILVA PAZ)
+    // =============================================================
+
+    function mpazHeliceHelicoidal(frequencias, fRef = 261.63, epsilon = 0.08) {
+      const matrizHelicoidal = [];
+
+      frequencias.forEach((freq, idx) => {
+        // z representa o deslocamento ao longo do eixo da hélice (oitavas em relação a fRef)
+        const z = Math.log2(freq / fRef);
+        
+        // Fase base angular diatônica
+        const anguloBase = (2 * Math.PI) * (Math.log2(freq / fRef) % 1);
+        
+        // Modulador Assimétrico MPaz
+        const modAssimetrico = 1 + (epsilon * Math.sin(anguloBase));
+        const theta = anguloBase * modAssimetrico;
+
+        // Projeções paramétricas tridimensionais do vetor espacial
+        const r = 1.0;
+        const x = r * Math.cos(theta);
+        const y = r * Math.sin(theta);
+
+        matrizHelicoidal.push({
+          indice: idx + 1,
+          freqHz: freq.toFixed(2),
+          coordX: x.toFixed(4),
+          coordY: y.toFixed(4),
+          coordZ: z.toFixed(4),
+          thetaRad: theta.toFixed(4)
+        });
+      });
+
+      return matrizHelicoidal;
+    }
+
+    // =============================================================
+    // 3. SINTETIZADOR FÍSICO DE VIOLONCELO E MOTOR DE ÁUDIO
+    // =============================================================
+
+    function tocarNotaVioloncelo(freq, tempoInicio, duracaoSeg) {
+      if (!audioCtx) return;
+
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, tempoInicio);
+
+      // LFO para vibrato natural
+      const lfo = audioCtx.createOscillator();
+      const lfoGain = audioCtx.createGain();
+      lfo.frequency.value = 5.2; 
+      lfoGain.gain.value = freq * 0.012; 
+      lfo.connect(osc.frequency);
+      lfo.start(tempoInicio);
+      lfo.stop(tempoInicio + duracaoSeg);
+
+      // Filtro da caixa acústica ressonante
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(550, tempoInicio);
+      filter.Q.value = 2.5;
+
+      // Envelope ADSR
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0.0001, tempoInicio);
+      gainNode.gain.exponentialRampToValueAtTime(0.28, tempoInicio + 0.06);
+      gainNode.gain.exponentialRampToValueAtTime(0.18, tempoInicio + duracaoSeg * 0.75);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, tempoInicio + duracaoSeg);
+
+      osc.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      osc.start(tempoInicio);
+      osc.stop(tempoInicio + duracaoSeg);
+
+      agendadorAudio.push(osc);
+    }
+
+    function pararAudio() {
+      agendadorAudio.forEach(node => {
+        try { node.stop(); } catch(e){}
+      });
+      agendadorAudio = [];
+      
+      const btnPlay = document.getElementById('btnPlay');
+      const btnStop = document.getElementById('btnStop');
+      btnPlay.disabled = false;
+      btnPlay.innerText = "▶ Tocar Obra";
+      btnStop.disabled = true;
+    }
+
+    function tocarVioloncelo() {
+      const btnPlay = document.getElementById('btnPlay');
+      const btnStop = document.getElementById('btnStop');
+      btnPlay.disabled = true;
+      btnStop.disabled = false;
+      btnPlay.innerText = "🔊 Executando...";
+
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      let tempoAcumulado = audioCtx.currentTime + 0.1;
+      const chaveObra = document.getElementById('obraSelect').value;
+      const bpm = OBRAS_BACH[chaveObra].tempoBPM;
+      const duracaoSeminima = 60 / bpm;
+
+      const duracaoRelativa = {
+        "1": duracaoSeminima * 4,
+        "2": duracaoSeminima * 2,
+        "2h": duracaoSeminima * 3,
+        "4": duracaoSeminima,
+        "8": duracaoSeminima / 2
+      };
+
+      freqsTemaAtuais.forEach((freq, idx) => {
+        const duracaoSeg = duracaoRelativa[duracoesTemaAtuais[idx]] || duracaoSeminima;
+        tocarNotaVioloncelo(freq, tempoAcumulado, duracaoSeg);
+        tempoAcumulado += duracaoSeg;
+      });
+
+      const tempoTotal = (tempoAcumulado - audioCtx.currentTime) * 1000;
+      setTimeout(() => {
+        if (!btnPlay.disabled) return;
+        btnPlay.disabled = false;
+        btnStop.disabled = true;
+        btnPlay.innerText = "▶ Tocar Obra";
+      }, tempoTotal);
+    }
+
+    // =============================================================
+    // 4. RENDERIZADOR DE PARTITURA PAGINADA (VEXFLOW)
+    // =============================================================
+
+    function renderizarPartituraBach(notasFormatadas, fFormula) {
+      const container = document.getElementById('partitura-container');
+      container.innerHTML = '';
+
+      const NOTAS_POR_SISTEMA = 16;
+      const totalSistemas = Math.ceil(notasFormatadas.length / NOTAS_POR_SISTEMA);
+
+      for (let i = 0; i < totalSistemas; i++) {
+        const divSistema = document.createElement('div');
+        divSistema.id = `sistema-${i}`;
+        container.appendChild(divSistema);
+
+        const fatiaNotas = notasFormatadas.slice(i * NOTAS_POR_SISTEMA, (i + 1) * NOTAS_POR_SISTEMA);
+
+        const { Factory, StaveNote, Accidental } = Vex.Flow;
+        const vf = new Factory({
+          renderer: { elementId: `sistema-${i}`, width: 800, height: 130 }
+        });
+
+        const score = vf.EasyScore();
+        const system = vf.System({ width: 780 });
+
+        const vexNotes = fatiaNotas.map(item => {
+          const [pitch, octave] = item.nota.split('/');
+          let note = new StaveNote({
+            clef: 'treble',
+            keys: [`${pitch}/${octave}`],
+            duration: item.duracao.replace('h', '')
+          });
+
+          if (pitch.includes('#')) {
+            note.addModifier(new Accidental('#'));
+          } else if (pitch.includes('b')) {
+            note.addModifier(new Accidental('b'));
+          }
+
+          return note;
+        });
+
+        const stave = system.addStave({
+          voices: [vf.Voice({ time: `${fatiaNotas.length}/4` }).addTickables(vexNotes)]
+        }).addClef('treble');
+
+        if (i === 0) {
+          stave.addTimeSignature(fFormula);
+        }
+
+        vf.draw();
+      }
+    }
+
+    // =============================================================
+    // 5. EXECUÇÃO INTEGRADA DO SISTEMA
+    // =============================================================
+
+    function executarAlgoritmo() {
+      pararAudio();
+      
+      const chaveObra = document.getElementById('obraSelect').value;
+      const obra = OBRAS_BACH[chaveObra];
+      const offset = parseInt(document.getElementById('transposicao').value);
+
+      // Extração e cálculo de frequências
+      duracoesTemaAtuais = obra.notas.map(n => n.duracao);
+      freqsTemaAtuais = obra.notas.map(n => notaParaFrequencia(n.nota, offset));
+
+      // Aplicação da Teoria MPaz (Indexação Helicoidal)
+      const coordenadasPaz = mpazHeliceHelicoidal(freqsTemaAtuais);
+
+      // Re-conversão para Notação
+      const notasProcessadas = freqsTemaAtuais.map((freq, i) => {
+        return {
+          nota: frequenciaParaNotaVexFlow(freq),
+          duracao: obra.notas[i].duracao
+        };
+      });
+
+      // Renderização
+      renderizarPartituraBach(notasProcessadas, obra.fFormula);
+
+      // Registro da Matriz
+      const log = document.getElementById('logMatriz');
+      let logHTML = `<b>=== INDEXAÇÃO HELICOIDAL MPAZ (${obra.titulo.toUpperCase()}) ===</b><br>`;
+      logHTML += `<b>Matriz Diatônica Helicoidal Assimétrica (N = ${coordenadasPaz.length} nós)</b><br><br>`;
+      
+      coordenadasPaz.forEach(p => {
+        logHTML += `Nó ${p.indice.toString().padStart(3, '0')} [${p.freqHz} Hz] -> <b>Vector MPaz (X,Y,Z):</b> (${p.coordX}, ${p.coordY}, ${p.coordZ}) | &theta;: ${p.thetaRad} rad<br>`;
+      });
+      log.innerHTML = logHTML;
+    }
+
+    window.onload = executarAlgoritmo;
+  </script>
+
+</body>
+</html>

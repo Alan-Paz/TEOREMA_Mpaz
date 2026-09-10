@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O Triângulo Espaço-Temporal da Paz 3D</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', monospace, sans-serif;
+      background-color: #020617;
+      color: #e2e8f0;
+      overflow: hidden;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 380px;
+      background: #0f172a;
+      border-right: 1px solid #1e293b;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 10;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.8);
+      overflow-y: auto;
+    }
+    h1 { font-size: 1.1rem; color: #fbbf24; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+    .subtitle { font-size: 0.75rem; color: #94a3b8; }
+    .control-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.8rem; color: #cbd5e1; display: flex; justify-content: space-between; }
+    input[type="range"] { width: 100%; accent-color: #fbbf24; background: #1e293b; }
+    .math-box {
+      background: #020617;
+      border: 1px solid #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      color: #fef08a;
+      line-height: 1.4;
+    }
+    #canvas-container { flex: 1; position: relative; }
+    #info-overlay {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(6px);
+      border: 1px solid #1e293b;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>O Triângulo Espaço-Temporal da Paz</h1>
+      <p class="subtitle">Alan Aparecido da Silva Paz — Trajetória Helicoidal e Hipotenusa de Luz (v=c)</p>
+    </div>
+
+    <div class="math-box">
+      <strong>Parâmetros da Hélice M_Paz:</strong><br>
+      • Cateto Adjacente (Eixo X): Observador A (Terra)<br>
+      • Cateto Oposto (Eixo Y): Trajetória do Observador B<br>
+      • Hipotenusa (c): Cone / Linha de Luz (v=c)<br>
+      • Operador: M_Paz = [cos θ, 0, -sin θ; 0, 1, ΔK; sin θ, 0, cos θ]
+    </div>
+
+    <div class="control-group">
+      <label for="height">Crescimento Axial ΔK (Eixo Y): <span id="height-val">0.30</span></label>
+      <input type="range" id="height" min="0.10" max="0.80" step="0.02" value="0.30">
+    </div>
+
+    <div class="control-group">
+      <label for="theta">Fase Angular θ (rad): <span id="theta-val">0.52</span></label>
+      <input type="range" id="theta" min="0.10" max="1.57" step="0.02" value="0.52">
+    </div>
+
+    <div class="control-group">
+      <label for="expansion">Expansão de Cônica / Raio R: <span id="expansion-val">0.12</span></label>
+      <input type="range" id="expansion" min="0.02" max="0.30" step="0.01" value="0.12">
+    </div>
+
+    <div class="control-group">
+      <label for="steps">Pontos Espaço-Temporais (N): <span id="steps-val">60</span></label>
+      <input type="range" id="steps" min="20" max="120" step="2" value="60">
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div id="info-overlay">
+      Simulação 3D | Interativo: Rotacione com o mouse
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(18, 12, 22);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // ILUMINAÇÃO
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const light = new THREE.PointLight(0xfef08a, 2, 60);
+    light.position.set(0, 20, 0);
+    scene.add(light);
+
+    const pazGroup = new THREE.Group();
+    scene.add(pazGroup);
+
+    // GERADOR DA TRAJETÓRIA HELICOIDAL
+    function computeHelixPoints(N, theta, deltaK, expansionRate) {
+      const points = [];
+      let currentPos = new THREE.Vector3(0.1, 0, 0);
+
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+
+      for (let n = 0; n < N; n++) {
+        points.push(currentPos.clone());
+
+        // Raio expande linearmente com o eixo Y para formar a hélice cônica do triângulo
+        const r_next = (n + 1) * expansionRate;
+        const currentAngle = n * theta;
+
+        const nextX = r_next * Math.cos(currentAngle);
+        const nextY = currentPos.y + deltaK;
+        const nextZ = r_next * Math.sin(currentAngle);
+
+        currentPos.set(nextX, nextY, nextZ);
+      }
+      return points;
+    }
+
+    function rebuildTriangle() {
+      while(pazGroup.children.length > 0) {
+        const obj = pazGroup.children.pop();
+        if(obj.geometry) obj.geometry.dispose();
+      }
+
+      const deltaK = parseFloat(document.getElementById('height').value);
+      const theta = parseFloat(document.getElementById('theta').value);
+      const expansion = parseFloat(document.getElementById('expansion').value);
+      const N = parseInt(document.getElementById('steps').value);
+
+      const points = computeHelixPoints(N, theta, deltaK, expansion);
+      const maxY = N * deltaK;
+      const maxR = N * expansion;
+
+      pazGroup.position.y = -maxY / 2;
+
+      // 1. EIXOS E ESTRUTURA DO TRIÂNGULO ESPAÇO-TEMPORAL
+      // Cateto Adjacente (Eixo X) - Observador A (Terra)
+      const adjGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(maxR * 1.5, 0, 0)]);
+      const adjMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
+      pazGroup.add(new THREE.Line(adjGeo, adjMat));
+
+      // Cateto Oposto (Eixo Y) - Trajetória Vertical de Crescimento
+      const oppGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, maxY, 0)]);
+      const oppMat = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2 });
+      pazGroup.add(new THREE.Line(oppGeo, oppMat));
+
+      // Hipotenusa (Linha de Luz v=c)
+      const hypGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(maxR * 1.2, maxY, 0)]);
+      const hypMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 3 });
+      pazGroup.add(new THREE.Line(hypGeo, hypMat));
+
+      // Cone de Luz (Luz Navegando v=c)
+      const coneGeo = new THREE.ConeGeometry(maxR * 1.2, maxY, 32, 1, true);
+      coneGeo.translate(0, maxY / 2, 0);
+      const coneMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, wireframe: true, transparent: true, opacity: 0.15 });
+      pazGroup.add(new THREE.Mesh(coneGeo, coneMat));
+
+      // 2. HÉLICE HELICOIDAL DA TRAJETÓRIA HUMANA (Observador B)
+      const helixCurve = new THREE.CatmullRomCurve3(points);
+      const tubeGeo = new THREE.TubeGeometry(helixCurve, N * 2, 0.15, 8, false);
+      const tubeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.3, metalness: 0.5 });
+      pazGroup.add(new THREE.Mesh(tubeGeo, tubeMat));
+
+      // Vértices / Nós ao longo da hélice
+      const nodeGeo = new THREE.SphereGeometry(0.25, 12, 12);
+      const nodeMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xfbbf24 });
+
+      points.forEach((pt) => {
+        const node = new THREE.Mesh(nodeGeo, nodeMat);
+        node.position.copy(pt);
+        pazGroup.add(node);
+      });
+
+      // 3. OBSERVADOR A (Origem - Terra)
+      const obsGeo = new THREE.SphereGeometry(0.6, 16, 16);
+      const obsMat = new THREE.MeshStandardMaterial({ color: 0x10b981 });
+      const obsA = new THREE.Mesh(obsGeo, obsMat);
+      obsA.position.set(0, 0, 0);
+      pazGroup.add(obsA);
+    }
+
+    function updateUI() {
+      document.getElementById('height-val').innerText = parseFloat(document.getElementById('height').value).toFixed(2);
+      document.getElementById('theta-val').innerText = parseFloat(document.getElementById('theta').value).toFixed(2);
+      document.getElementById('expansion-val').innerText = parseFloat(document.getElementById('expansion').value).toFixed(2);
+      document.getElementById('steps-val').innerText = document.getElementById('steps').value;
+    }
+
+    ['height', 'theta', 'expansion', 'steps'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        updateUI();
+        rebuildTriangle();
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      pazGroup.rotation.y += 0.005;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    updateUI();
+    rebuildTriangle();
+    animate();
+  </script>
+</body>
+</html>

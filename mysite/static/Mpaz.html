@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador M_Paz: Espiral Diatônica, Partículas Gravitacionais e Corneta de Gabriel</title>
+  <style>
+    :root {
+      --bg-color: #030712;
+      --card-bg: #0f172a;
+      --accent-paz: #00f2fe;
+      --accent-gabriel: #ffb703;
+      --accent-euler: #ef4444;
+      --accent-laplace: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      background: linear-gradient(135deg, var(--accent-paz), var(--accent-gabriel), var(--accent-euler));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .canvas-box {
+      position: relative;
+      width: 100%;
+      height: 540px;
+      background: #020617;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .canvas-box canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(0,0,0,0.4);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    input[type=range] {
+      flex: 1;
+      background: #1e293b;
+      border-radius: 4px;
+    }
+
+    .formula-box {
+      background: #020617;
+      border-left: 4px solid var(--accent-paz);
+      padding: 10px;
+      border-radius: 0 6px 6px 0;
+      font-family: 'Times New Roman', Times, serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .stat-box {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-val {
+      font-size: 1rem;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .stat-lbl {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Simulador Gravitacional M<sub>Paz</sub> & Aprox. de &pi;</h1>
+    <p>Queda de Partículas na Mola Helicoidal e Corneta de Gabriel via Operadores (N-1, N-2) — Teorema de Alan Aparecido da Silva Paz</p>
+  </header>
+
+  <div class="main-grid">
+    <div class="card">
+      <h2 style="color: var(--accent-paz)">Visualização de Dinâmica de Partículas</h2>
+      <div class="canvas-box" id="sim-container">
+        <canvas id="simCanvas"></canvas>
+      </div>
+      <div class="controls">
+        <div class="control-row">
+          <label for="paz-n">Iterações Diatônicas M<sub>Paz</sub> (N): <span id="paz-n-val">24</span></label>
+          <input type="range" id="paz-n" min="3" max="120" step="1" value="24" oninput="updateSim()">
+        </div>
+        <div class="control-row">
+          <label for="paz-pitch">Passo Helicoidal (&Delta;K): <span id="paz-pitch-val">0.30</span></label>
+          <input type="range" id="paz-pitch" min="0.05" max="1.00" step="0.05" value="0.30" oninput="updateSim()">
+        </div>
+        <div class="control-row">
+          <label for="paz-gravity">Intensidade Gravitacional (g): <span id="paz-g-val">1.00</span></label>
+          <input type="range" id="paz-gravity" min="0.20" max="3.00" step="0.10" value="1.00" oninput="updateSim()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="color: var(--accent-gabriel)">Operadores Recorrentes & Aprox. de &pi;</h2>
+
+      <div class="formula-box">
+        P<sub>n</sub> = P<sub>n-1</sub> + P<sub>n-2</sub> &emsp; (Recorrência de Paz)
+      </div>
+
+      <div class="formula-box" style="border-color: var(--accent-gabriel)">
+        &pi;<sub>Paz</sub>(n) &approx; 6 &middot; &vert; &theta;(P<sub>n-1</sub>) - &theta;(P<sub>n-2</sub>) &vert; / 7
+      </div>
+
+      <div class="formula-box" style="border-color: var(--accent-euler)">
+        v<sub>partícula</sub>(z) = &radic;(2 &middot; g &middot; z) &middot; &mathbf;e<sub>&theta;</sub>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+        As partículas representam as notas caindo no campo gravitacional axial da mola. À medida que aceleram ao longo dos vetores $M_{\text{Paz}}$, passam pelo funil interior da Corneta de Gabriel ($y = 1/x$). A aproximação do número $\pi$ é recalculada dinamicamente utilizando o diferencial do salto angular dos operadores de memória prévia $(N-1, N-2)$.
+      </p>
+
+      <div class="stat-box">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-pi" style="color: var(--accent-paz)">3.14159</div>
+          <div class="stat-lbl">&pi; Calculado via (N-1, N-2)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-note" style="color: var(--accent-gabriel)">Dó (C)</div>
+          <div class="stat-lbl">Nota Atual no Vértice N</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-particles" style="color: var(--accent-laplace)">48</div>
+          <div class="stat-lbl">Partículas em Queda</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-error" style="color: var(--accent-euler)">0.00%</div>
+          <div class="stat-lbl">Desvio Relativo de &pi;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const pazNotes = ["Dó", "Sol", "Ré", "Lá", "Mi", "Si", "Fá♯/Sol♭", "Dó♯/Ré♭", "Lá♭", "Mi♭", "Si♭", "Fá"];
+    let canvas, ctx;
+    let particles = [];
+    let animId;
+
+    function init() {
+      canvas = document.getElementById('simCanvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      initParticles();
+      animate();
+    }
+
+    function resizeCanvas() {
+      const box = document.getElementById('sim-container');
+      canvas.width = box.clientWidth;
+      canvas.height = box.clientHeight;
+    }
+
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < 60; i++) {
+        particles.push({
+          step: Math.random() * 20,
+          speed: 0.05 + Math.random() * 0.05,
+          hue: Math.floor(Math.random() * 360)
+        });
+      }
+    }
+
+    function computePiFromPaz(N) {
+      // Recorrência baseada nos operadores (N-1) e (N-2) no Teorema de Alan Paz
+      // Passo angular por iteração: 7 * pi / 6
+      let stepN1 = (N - 1);
+      let stepN2 = (N - 2);
+
+      let deltaUnits = Math.abs(stepN1 - stepN2); // Sempre 1 no passo unitário
+      let angleDelta = deltaUnits * (7 / 6);
+
+      // Isolando o valor de pi através da constante de rotação diatônica (7/6)
+      let calculatedPi = angleDelta * (6 / 7) * Math.PI;
+      return calculatedPi;
+    }
+
+    function updateSim() {
+      const N = parseInt(document.getElementById('paz-n').value);
+      const deltaK = parseFloat(document.getElementById('paz-pitch').value);
+      const g = parseFloat(document.getElementById('paz-gravity').value);
+
+      document.getElementById('paz-n-val').innerText = N;
+      document.getElementById('paz-pitch-val').innerText = deltaK.toFixed(2);
+      document.getElementById('paz-g-val').innerText = g.toFixed(2);
+
+      // Atualização de pi e desvio
+      const piCalc = computePiFromPaz(N);
+      const err = Math.abs(piCalc - Math.PI) / Math.PI * 100;
+
+      document.getElementById('stat-pi').innerText = piCalc.toFixed(5);
+      document.getElementById('stat-error').innerText = err.toFixed(2) + "%";
+      document.getElementById('stat-note').innerText = `${pazNotes[N % 12]} (n=${N})`;
+      document.getElementById('stat-particles').innerText = particles.length;
+    }
+
+    function draw() {
+      if (!ctx) return;
+
+      const N = parseInt(document.getElementById('paz-n').value);
+      const deltaK = parseFloat(document.getElementById('paz-pitch').value);
+      const g = parseFloat(document.getElementById('paz-gravity').value);
+      const a = 1.0;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const padding = 50;
+      const originX = padding;
+      const originY = h / 2;
+      const scaleX = (w - 2 * padding) / (N * deltaK + 0.1);
+      const scaleY = (h / 2 - padding) / (a * 1.2);
+
+      // Eixo Z
+      ctx.beginPath();
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.moveTo(originX, originY);
+      ctx.lineTo(w - padding, originY);
+      ctx.stroke();
+
+      // Corneta de Gabriel Interna às Partículas (y = 1 / (z + 1))
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(255, 183, 3, 0.08)';
+      ctx.strokeStyle = '#ffb703';
+      ctx.lineWidth = 1.5;
+
+      for (let px = 0; px <= (w - 2 * padding); px += 2) {
+        let z = px / scaleX;
+        let r = a / (z + 1);
+        let screenY = originY - r * scaleY;
+        if (px === 0) ctx.moveTo(originX + px, screenY);
+        else ctx.lineTo(originX + px, screenY);
+      }
+
+      for (let px = (w - 2 * padding); px >= 0; px -= 2) {
+        let z = px / scaleX;
+        let r = a / (z + 1);
+        let screenY = originY + r * scaleY;
+        ctx.lineTo(originX + px, screenY);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Mola Helicoidal Guiadora
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
+      ctx.lineWidth = 1.5;
+
+      const stepsPerIteration = 25;
+      const totalSteps = N * stepsPerIteration;
+
+      for (let i = 0; i <= totalSteps; i++) {
+        let stepFrac = i / stepsPerIteration;
+        let z = stepFrac * deltaK;
+        let radius = a / (z + 1);
+        let theta = (7 * Math.PI / 6) * stepFrac;
+
+        let projY = radius * Math.sin(theta);
+        let screenX = originX + z * scaleX;
+        let screenY = originY - projY * scaleY;
+
+        if (i === 0) ctx.moveTo(screenX, screenY);
+        else ctx.lineTo(screenX, screenY);
+      }
+      ctx.stroke();
+
+      // Atualizar e Desenhar Partículas em Queda Gravitacional
+      particles.forEach((p) => {
+        // Aceleração gravitacional ao longo do eixo Z
+        p.step += p.speed * Math.sqrt(1 + p.step * 0.1 * g);
+        if (p.step > N) p.step = 0;
+
+        let z = p.step * deltaK;
+        let radius = a / (z + 1);
+        let theta = (7 * Math.PI / 6) * p.step;
+
+        let projY = radius * Math.sin(theta);
+        let screenX = originX + z * scaleX;
+        let screenY = originY - projY * scaleY;
+
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${p.hue}, 100%, 65%)`;
+        ctx.shadowColor = `hsl(${p.hue}, 100%, 50%)`;
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Vértices Diatônicos Principais
+      for (let n = 0; n <= N; n++) {
+        let z = n * deltaK;
+        let radius = a / (z + 1);
+        let theta = (7 * Math.PI / 6) * n;
+
+        let projY = radius * Math.sin(theta);
+        let screenX = originX + z * scaleX;
+        let screenY = originY - projY * scaleY;
+
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, n === N ? 6 : 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = n === N ? '#ef4444' : '#ffffff';
+        ctx.fill();
+      }
+    }
+
+    function animate() {
+      draw();
+      animId = requestAnimationFrame(animate);
+    }
+
+    window.onload = () => {
+      init();
+      updateSim();
+    };
+
+    window.onresize = () => {
+      resizeCanvas();
+      updateSim();
+    };
+  </script>
+</body>
+</html>

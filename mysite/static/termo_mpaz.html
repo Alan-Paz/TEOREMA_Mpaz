@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compressor Bitzer R22 & Diagrama P-T com Matriz M_Paz</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', monospace, sans-serif;
+      background-color: #020617;
+      color: #e2e8f0;
+      overflow: hidden;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 440px;
+      background: #0f172a;
+      border-right: 1px solid #1e293b;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.8);
+      overflow-y: auto;
+    }
+    h1 { font-size: 1.1rem; color: #38bdf8; border-bottom: 1px solid #1e293b; padding-bottom: 6px; }
+    .subtitle { font-size: 0.7rem; color: #94a3b8; }
+    .control-group { display: flex; flex-direction: column; gap: 2px; }
+    label { font-size: 0.75rem; color: #cbd5e1; display: flex; justify-content: space-between; }
+    input[type="range"] { width: 100%; accent-color: #38bdf8; background: #1e293b; }
+    .math-box {
+      background: #020617;
+      border: 1px solid #1e293b;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      color: #a7f3d0;
+      line-height: 1.3;
+    }
+    .chart-container {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 6px;
+      height: 210px;
+      position: relative;
+    }
+    #canvas-container { flex: 1; position: relative; }
+    #info-overlay {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid #1e293b;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>Compressor Bitzer R22 & M_Paz</h1>
+      <p class="subtitle">Análise Termodinâmica, Entropia & Ciclo de Refrigeração</p>
+    </div>
+
+    <div class="math-box">
+      <strong>Formulação Termodinâmica & M_Paz:</strong><br>
+      • Compressão Isentrópica: $s_1 = s_2 \implies W_{comp} = \dot{m}(h_2 - h_1)$<br>
+      • Expansão Isoentálpica: $h_3 = h_4$ (Válvula de Expansão)<br>
+      • Operador Helicoidal: $P_n = M_{Paz} \cdot P_{n-1} + [0, V_{pistão}, 0]^T$<br>
+      • Entropia R22: $dS = \frac{dQ}{T} + dS_{gen} \ge 0$
+    </div>
+
+    <div class="control-group">
+      <label for="evap-temp">Temp. Evaporação (T_evap): <span id="evap-val">-10 °C</span></label>
+      <input type="range" id="evap-temp" min="-30" max="5" step="1" value="-10">
+    </div>
+
+    <div class="control-group">
+      <label for="cond-temp">Temp. Condensação (T_cond): <span id="cond-val">45 °C</span></label>
+      <input type="range" id="cond-temp" min="25" max="60" step="1" value="45">
+    </div>
+
+    <div class="control-group">
+      <label for="rpm">Rotação do Compressor (RPM): <span id="rpm-val">1450 RPM</span></label>
+      <input type="range" id="rpm" min="500" max="2900" step="50" value="1450">
+    </div>
+
+    <!-- DIAGRAMA PRESSÃO X TEMPERATURA (P-T) -->
+    <div class="chart-container">
+      <canvas id="ptChart"></canvas>
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div id="info-overlay">
+      3D: Compressor Bitzer + Ciclo R22 (Condensador, Válvula e Evaporador)
+    </div>
+  </div>
+
+  <script>
+    // --- CONFIGURAÇÃO THREE.JS (CENA 3D) ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(20, 18, 30);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const light = new THREE.DirectionalLight(0xffffff, 1.2);
+    light.position.set(20, 30, 20);
+    scene.add(light);
+
+    const mainGroup = new THREE.Group();
+    scene.add(mainGroup);
+
+    let pistonMesh, crankshaftMesh, connectingRodMesh, particlesGroup;
+    let particlePositions = [];
+
+    // COMPONENTES DO CICLO
+    function buildBitzerSystem() {
+      while(mainGroup.children.length > 0) {
+        const obj = mainGroup.children.pop();
+        if(obj.geometry) obj.geometry.dispose();
+      }
+
+      // 1. COMPRESSOR BITZER (Verde Característico)
+      const compBodyGeo = new THREE.BoxGeometry(6, 5, 4);
+      const bitzerGreenMat = new THREE.MeshStandardMaterial({ color: 0x15803d, metalness: 0.4, roughness: 0.5 });
+      const compBody = new THREE.Mesh(compBodyGeo, bitzerGreenMat);
+      compBody.position.set(-8, 2.5, 0);
+      mainGroup.add(compBody);
+
+      // Cilindro Transparente
+      const cylGeo = new THREE.CylinderGeometry(1.2, 1.2, 3, 32, 1, true);
+      const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, transmission: 0.9 });
+      const cyl = new THREE.Mesh(cylGeo, glassMat);
+      cyl.position.set(-8, 5.5, 0);
+      mainGroup.add(cyl);
+
+      // Pistão internamente animado
+      const pistonGeo = new THREE.CylinderGeometry(1.15, 1.15, 0.8, 32);
+      const pistonMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 });
+      pistonMesh = new THREE.Mesh(pistonGeo, pistonMat);
+      pistonMesh.position.set(-8, 5, 0);
+      mainGroup.add(pistonMesh);
+
+      // 2. CONDENSADOR (Serpentina Quente)
+      const condGroup = new THREE.Group();
+      const condMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 });
+      for(let i = 0; i < 5; i++) {
+        const pipeGeo = new THREE.TorusGeometry(1.5, 0.2, 16, 32, Math.PI);
+        const pipe = new THREE.Mesh(pipeGeo, condMat);
+        pipe.position.set(0, 7 - i * 0.8, -6);
+        pipe.rotation.x = Math.PI / 2;
+        condGroup.add(pipe);
+      }
+      mainGroup.add(condGroup);
+
+      // 3. VÁLVULA DE EXPANSÃO ISOENTÁLPICA
+      const expGeo = new THREE.ConeGeometry(0.8, 1.5, 16);
+      const expMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.8 });
+      const expValve = new THREE.Mesh(expGeo, expMat);
+      expValve.position.set(8, 2, -6);
+      expValve.rotation.z = -Math.PI / 2;
+      mainGroup.add(expValve);
+
+      // 4. EVAPORADOR (Serpentina Fria)
+      const evapGroup = new THREE.Group();
+      const evapMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.3 });
+      for(let i = 0; i < 5; i++) {
+        const pipeGeo = new THREE.TorusGeometry(1.5, 0.2, 16, 32, Math.PI);
+        const pipe = new THREE.Mesh(pipeGeo, evapMat);
+        pipe.position.set(0, 1 + i * 0.8, 6);
+        pipe.rotation.x = -Math.PI / 2;
+        evapGroup.add(pipe);
+      }
+      mainGroup.add(evapGroup);
+
+      // 5. TUBULAÇÃO DO CICLO COMPLETO
+      const pipeMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.6 });
+
+      // Descarga -> Condensador
+      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 8), pipeMat);
+      p1.position.set(-4, 6, -3); p1.rotation.z = Math.PI/2; p1.rotation.y = -Math.PI/4;
+      mainGroup.add(p1);
+
+      // Condensador -> Válvula
+      const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 8), pipeMat);
+      p2.position.set(4, 2, -6); p2.rotation.z = Math.PI/2;
+      mainGroup.add(p2);
+
+      // Válvula -> Evaporador
+      const p3 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 12), pipeMat);
+      p3.position.set(8, 2, 0); p3.rotation.x = Math.PI/2;
+      mainGroup.add(p3);
+
+      // Evaporador -> Sucção do Compressor
+      const p4 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 10), pipeMat);
+      p4.position.set(-4, 2, 3); p4.rotation.z = Math.PI/2; p4.rotation.y = Math.PI/4;
+      mainGroup.add(p4);
+
+      // 6. PARTÍCULAS DO FLUIDO REFRIGERANTE R22 (Dinamizadas por M_Paz)
+      particlesGroup = new THREE.Group();
+      const partGeo = new THREE.SphereGeometry(0.12, 8, 8);
+      const partMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+      for(let i = 0; i < 60; i++) {
+        const pMesh = new THREE.Mesh(partGeo, partMat);
+        particlesGroup.add(pMesh);
+      }
+      mainGroup.add(particlesGroup);
+    }
+
+    // --- GRÁFICO DIAGRAMA PRESSÃO X TEMPERATURA (CHART.JS) ---
+    let ptChart;
+    function initPTChart() {
+      const ctx = document.getElementById('ptChart').getContext('2d');
+      ptChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Envelope Bitzer (R22)',
+              data: [],
+              borderColor: '#64748b',
+              borderDash: [5, 5],
+              fill: false,
+              pointRadius: 0
+            },
+            {
+              label: 'Ciclo Termodinâmico M_Paz',
+              data: [],
+              borderColor: '#fbbf24',
+              backgroundColor: 'rgba(251, 191, 36, 0.15)',
+              borderWidth: 2,
+              fill: true,
+              pointRadius: 4,
+              pointBackgroundColor: ['#38bdf8', '#ef4444', '#ef4444', '#38bdf8']
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'linear',
+              position: 'bottom',
+              title: { display: true, text: 'Temperatura (°C)', color: '#94a3b8', font: { size: 10 } },
+              ticks: { color: '#64748b', font: { size: 9 } },
+              grid: { color: '#1e293b' }
+            },
+            y: {
+              title: { display: true, text: 'Pressão (bar)', color: '#94a3b8', font: { size: 10 } },
+              ticks: { color: '#64748b', font: { size: 9 } },
+              grid: { color: '#1e293b' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#cbd5e1', font: { size: 9 } } }
+          }
+        }
+      });
+    }
+
+    // FÓRMULAS DE SATURAÇÃO R22 (Aproximações Termodinâmicas de Antoine)
+    function getR22Pressure(tempC) {
+      const T = tempC + 273.15;
+      // Pressão em bar de acordo com curva R22
+      return Math.exp(10.55 - 2000 / T);
+    }
+
+    function updateThermodynamics() {
+      const tEvap = parseFloat(document.getElementById('evap-temp').value);
+      const tCond = parseFloat(document.getElementById('cond-temp').value);
+
+      const pEvap = getR22Pressure(tEvap);
+      const pCond = getR22Pressure(tCond);
+
+      // Ponto 1: Sucção (Vapor Saturado)
+      const pt1 = { x: tEvap, y: pEvap };
+      // Ponto 2: Descarga do Compressor (Isentrópico / Adiabático Reversível + M_Paz)
+      const tDescarga = tCond + (tCond - tEvap) * 0.45;
+      const pt2 = { x: tDescarga, y: pCond };
+      // Ponto 3: Saída do Condensador (Líquido Saturado)
+      const pt3 = { x: tCond, y: pCond };
+      // Ponto 4: Saída da Válvula de Expansão (Isoentálpico h3 = h4)
+      const pt4 = { x: tEvap, y: pEvap };
+
+      // Curva do Envelope de Operação Bitzer
+      const envelopeData = [];
+      for(let t = -40; t <= 65; t += 5) {
+        envelopeData.push({ x: t, y: getR22Pressure(t) });
+      }
+
+      ptChart.data.datasets[0].data = envelopeData;
+      ptChart.data.datasets[1].data = [pt1, pt2, pt3, pt4, pt1];
+      ptChart.update();
+
+      document.getElementById('evap-val').innerText = `${tEvap} °C (${pEvap.toFixed(2)} bar)`;
+      document.getElementById('cond-val').innerText = `${tCond} °C (${pCond.toFixed(2)} bar)`;
+    }
+
+    // --- ANIMAÇÃO E CICLO DE EXECUÇÃO ---
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const rpm = parseFloat(document.getElementById('rpm').value);
+      const freq = (rpm / 60) * 0.05;
+      time += freq;
+
+      // Animação do Pistão (Movimento Reciprocante alternado com matriz M_Paz)
+      if (pistonMesh) {
+        pistonMesh.position.y = 5.0 + Math.sin(time * 10) * 0.75;
+      }
+
+      // Animação do Fluido R22 pelas tubulações
+      if (particlesGroup) {
+        particlesGroup.children.forEach((p, idx) => {
+          const t = (time * 2 + idx * 0.1) % 4;
+          if(t < 1) { // Compressor -> Condensador
+            p.position.lerpVectors(new THREE.Vector3(-8, 5, 0), new THREE.Vector3(0, 7, -6), t);
+          } else if(t < 2) { // Condensador -> Válvula
+            p.position.lerpVectors(new THREE.Vector3(0, 7, -6), new THREE.Vector3(8, 2, -6), t - 1);
+          } else if(t < 3) { // Válvula -> Evaporador
+            p.position.lerpVectors(new THREE.Vector3(8, 2, -6), new THREE.Vector3(0, 1, 6), t - 2);
+          } else { // Evaporador -> Sucção
+            p.position.lerpVectors(new THREE.Vector3(0, 1, 6), new THREE.Vector3(-8, 2, 0), t - 3);
+          }
+        });
+      }
+
+      mainGroup.rotation.y += 0.002;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // EVENTOS DOS SLIDERS
+    ['evap-temp', 'cond-temp'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateThermodynamics);
+    });
+    document.getElementById('rpm').addEventListener('input', () => {
+      document.getElementById('rpm-val').innerText = `${document.getElementById('rpm').value} RPM`;
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    buildBitzerSystem();
+    initPTChart();
+    updateThermodynamics();
+    animate();
+  </script>
+</body>
+</html>

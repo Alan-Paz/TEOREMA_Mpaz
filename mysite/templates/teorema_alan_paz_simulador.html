@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teorema de Alan Aparecido da Silva Paz - Indexação Algébrica Diatônica</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: #151d2a;
+      --accent-cyan: #00f2fe;
+      --accent-purple: #9d4edd;
+      --accent-amber: #ffb703;
+      --accent-green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #243247;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      color: var(--accent-cyan);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      background: #050811;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(0,0,0,0.25);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    select, input[type=range] {
+      flex: 1;
+      accent-color: var(--accent-cyan);
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      border-radius: 6px;
+    }
+
+    .stat-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-val {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--accent-amber);
+      font-family: monospace;
+    }
+
+    .stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .explanation {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      background: rgba(0, 242, 254, 0.05);
+      border-left: 3px solid var(--accent-cyan);
+      padding: 10px 12px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .math {
+      font-family: 'Times New Roman', Times, serif;
+      font-style: italic;
+      color: var(--accent-cyan);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 5px;
+    }
+
+    .data-table th, .data-table td {
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      text-align: center;
+    }
+
+    .data-table th {
+      background: rgba(255,255,255,0.05);
+      color: var(--accent-cyan);
+    }
+
+    .highlight-row {
+      background: rgba(245, 158, 11, 0.15) !important;
+      color: var(--accent-amber) !important;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Teorema de Alan Aparecido da Silva Paz</h1>
+    <p>Indexação Algébrica de Sistemas Diatônicos & Mapeamento de Translação Armônica na Espiral 3D</p>
+  </header>
+
+  <div class="grid-layout">
+    <!-- Painel 3D: Projeção Helicoidal das Escalas -->
+    <div class="card">
+      <h2>1. Círculo de Quintas Helicoidal (Espaço de Paz)</h2>
+      
+      <div id="canvas-container">
+        <canvas id="pazCanvas"></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="control-row">
+          <label for="system-select">Série de Translação:</label>
+          <select id="system-select" onchange="updateSim()">
+            <option value="flats">Série g(N) = N - 1 (Bemóis / Quartas)</option>
+            <option value="sharps">Série f(N) = N - 2 (Sustenidos / Quintas)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label for="n-range">Índice N: <span id="n-val" style="color:var(--accent-amber)">1</span></label>
+          <input type="range" id="n-range" min="1" max="7" value="1" oninput="updateSim()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel de Formulação Algébrica -->
+    <div class="card">
+      <h2>2. Mapeamento Algébrico & Distância Topológica</h2>
+
+      <div class="explanation">
+        <strong>Fundamentação Teórica:</strong>
+        <br>
+        A translação da constante de <span class="math">-2</span> para <span class="math">-1</span> compensa o deslocamento do vetor gerador na malha geométrica diatônica.
+        <br>
+        <span class="math">ΔK = |(-2) - (-1)| = 1</span>
+        <br>
+        Este valor (<span class="math">ΔK = 1</span>) reflete a <strong>distância topológica</strong> entre a nota fundamental de estabilidade (Dó) e o início físico da geração harmônica natural.
+      </div>
+
+      <div class="stat-box">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-key">Dó Maior</div>
+          <div class="stat-lbl">Tonalidade Resultante</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-acc">0 bemóis</div>
+          <div class="stat-lbl">Acidentes / Alterações</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-dk">ΔK = 1</div>
+          <div class="stat-lbl">Distância Topológica</div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>N</th>
+              <th>g(N) = N - 1 (Bemóis)</th>
+              <th>f(N) = N - 2 (Sustenidos)</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <!-- Gerado Dinamicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const flatData = [
+      { n: 1, key: 'Dó Maior', acc: '0 bemóis' },
+      { n: 2, key: 'Fá Maior', acc: '1 bemol' },
+      { n: 3, key: 'Si♭ Maior', acc: '2 bemóis' },
+      { n: 4, key: 'Mi♭ Maior', acc: '3 bemóis' },
+      { n: 5, key: 'Lá♭ Maior', acc: '4 bemóis' },
+      { n: 6, key: 'Ré♭ Maior', acc: '5 bemóis' },
+      { n: 7, key: 'Sol♭ Maior', acc: '6 bemóis' }
+    ];
+
+    const sharpData = [
+      { n: 2, key: 'Dó Maior', acc: '0 sustenidos' },
+      { n: 3, key: 'Sol Maior', acc: '1 sustenido' },
+      { n: 4, key: 'Ré Maior', acc: '2 sustenidos' },
+      { n: 5, key: 'Lá Maior', acc: '3 sustenidos' },
+      { n: 6, key: 'Mi Maior', acc: '4 sustenidos' },
+      { n: 7, key: 'Si Maior', acc: '5 sustenidos' },
+      { n: 8, key: 'Fá♯ Maior', acc: '6 sustenidos' }
+    ];
+
+    const canvas = document.getElementById('pazCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let angleX = 0.5;
+    let angleY = 0.5;
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvas-container');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      drawSimulation();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - previousMousePosition.x;
+      const deltaY = e.clientY - previousMousePosition.y;
+
+      angleY += deltaX * 0.01;
+      angleX += deltaY * 0.01;
+
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+      drawSimulation();
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    function project3D(x, y, z, width, height) {
+      let x1 = x * Math.cos(angleY) + z * Math.sin(angleY);
+      let z1 = -x * Math.sin(angleY) + z * Math.cos(angleY);
+
+      let y2 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
+      let z2 = y * Math.sin(angleX) + z1 * Math.cos(angleX);
+
+      const fov = 300;
+      const distance = 3.5;
+      const scale = fov / (distance + z2);
+
+      return {
+        x: width / 2 + x1 * scale,
+        y: height / 2 + y2 * scale,
+        scale: scale
+      };
+    }
+
+    function renderTable(activeN, isFlat) {
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      for (let i = 0; i < 7; i++) {
+        const row = document.createElement('tr');
+        const fItem = flatData[i];
+        const sItem = sharpData[i];
+
+        if ((isFlat && fItem.n === activeN) || (!isFlat && (i + 1) === activeN)) {
+          row.className = 'highlight-row';
+        }
+
+        row.innerHTML = `
+          <td>N=${i + 1}</td>
+          <td>${fItem.key} (${fItem.acc})</td>
+          <td>${sItem.key} (${sItem.acc})</td>
+        `;
+        tbody.appendChild(row);
+      }
+    }
+
+    function updateSim() {
+      const system = document.getElementById('system-select').value;
+      const isFlat = system === 'flats';
+      const nVal = parseInt(document.getElementById('n-range').value);
+
+      document.getElementById('n-val').innerText = nVal;
+
+      let currentInfo;
+      if (isFlat) {
+        currentInfo = flatData[nVal - 1];
+      } else {
+        currentInfo = sharpData[nVal - 1];
+      }
+
+      document.getElementById('stat-key').innerText = currentInfo.key;
+      document.getElementById('stat-acc').innerText = currentInfo.acc;
+
+      renderTable(nVal, isFlat);
+      drawSimulation();
+    }
+
+    function drawSimulation() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const system = document.getElementById('system-select').value;
+      const isFlat = system === 'flats';
+      const activeN = parseInt(document.getElementById('n-range').value);
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Desenhar Hélice Geométrica em 3D
+      const totalPoints = 12;
+      const radius = 0.8;
+      const pitch = 0.2;
+
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        let t = (i / 12) * Math.PI * 2;
+        let z = (i - 12) * pitch * 0.1;
+        let x = radius * Math.cos(t);
+        let y = radius * Math.sin(t);
+
+        let p = project3D(x, y, z, w, h);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Plotar Pontos do Teorema (N = 1 a 7)
+      const dataList = isFlat ? flatData : sharpData;
+      
+      dataList.forEach((item, idx) => {
+        let stepIndex = isFlat ? (idx * 5) : (idx * 7); // Salto por quartas ou quintas
+        let t = (stepIndex / 12) * Math.PI * 2;
+        let z = (idx - 3) * 0.15;
+        let x = radius * Math.cos(t);
+        let y = radius * Math.sin(t);
+
+        let p = project3D(x, y, z, w, h);
+
+        const isActive = (idx + 1) === activeN;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, isActive ? 8 : 4, 0, Math.PI * 2);
+        ctx.fillStyle = isActive ? '#ffb703' : (isFlat ? '#00f2fe' : '#9d4edd');
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = isActive ? 2 : 1;
+        ctx.stroke();
+
+        // Rótulo da Tonalidade
+        ctx.fillStyle = isActive ? '#ffb703' : '#94a3b8';
+        ctx.font = isActive ? 'bold 12px sans-serif' : '10px sans-serif';
+        ctx.fillText(`${item.key} (N=${idx+1})`, p.x + 12, p.y + 4);
+      });
+    }
+
+    window.onload = () => {
+      resizeCanvas();
+      updateSim();
+    };
+  </script>
+</body>
+</html>

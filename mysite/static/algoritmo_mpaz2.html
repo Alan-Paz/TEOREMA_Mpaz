@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Modelo MPaz 3D & Transposição de Bach</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Painel Lateral - Controle e Partitura */
+    #sidebar {
+      width: 460px;
+      background: #111827;
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 15px;
+      z-index: 10;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+    }
+
+    h1 { font-size: 1.1rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+    h2 { font-size: 0.9rem; color: #94a3b8; font-weight: 400; }
+
+    .control-group {
+      background: #1f2937;
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label { font-size: 0.85rem; font-weight: 600; color: #f3f4f6; }
+
+    select, input[type="range"] {
+      width: 100%;
+      padding: 6px;
+      background: #374151;
+      border: 1px solid #4b5563;
+      color: #fff;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .value-display { font-size: 0.8rem; color: #38bdf8; text-align: right; }
+
+    #play-btn {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 10px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #play-btn:hover {
+      background: #0369a1;
+    }
+
+    /* Área da Partitura VexFlow */
+    #score-container {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 180px;
+      overflow: hidden;
+    }
+
+    /* Canvas Three.js */
+    #viewport {
+      flex: 1;
+      position: relative;
+    }
+
+    #legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid #374151;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      pointer-events: none;
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+  </style>
+
+  <!-- CDNs necessários: Three.js, OrbitControls e VexFlow -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>Geometria MPaz vs. Tonnetz</h1>
+      <h2>J.S. Bach - Minueto em Sol Maior (BWV Anh. 114)</h2>
+    </div>
+
+    <!-- Controles de Transposição e Assimetria -->
+    <div class="control-group">
+      <label for="transpose-select">Transposição (Clave de Sol):</label>
+      <select id="transpose-select">
+        <option value="0">Original (Sol Maior / G)</option>
+        <option value="2">Transpor +2 Semitons (Lá Maior / A)</option>
+        <option value="5">Transpor +5 Semitons (Dó Maior / C)</option>
+        <option value="-2">Transpor -2 Semitons (Fá Maior / F)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="asymmetry-range">Deformação Assimétrica ($\mathbf{A}$ - Coma Acústico):</label>
+      <input type="range" id="asymmetry-range" min="0" max="1" step="0.01" value="0.3">
+      <div class="value-display" id="asymmetry-val">Fator: 0.30</div>
+    </div>
+
+    <!-- Botão de Reprodução de Áudio -->
+    <div class="control-group">
+      <button id="play-btn">▶ Reproduzir Partitura</button>
+    </div>
+
+    <!-- Renderização da Partitura -->
+    <label>Partitura Transposta:</label>
+    <div id="score-container">
+      <div id="paper"></div>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="legend">
+      <div class="legend-item"><div class="dot" style="background:#00d2ff"></div> Hélice Geodésica MPaz (Eixo $Z$: Altura)</div>
+      <div class="legend-item"><div class="dot" style="background:#ff0055"></div> Posição das Notas da Partitura</div>
+      <div class="legend-item"><div class="dot" style="background:#eab308"></div> Variação de Assimetria Acústica</div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. DADOS MUSICAIS (J.S. Bach - Minueto em Sol) ---
+    const notesBachOriginal = [
+      { key: "g/4", duration: "q", pitchClass: 7 },
+      { key: "a/4", duration: "8", pitchClass: 9 },
+      { key: "b/4", duration: "8", pitchClass: 11 },
+      { key: "c/5", duration: "q", pitchClass: 0 },
+      { key: "d/5", duration: "q", pitchClass: 2 },
+      { key: "g/4", duration: "q", pitchClass: 7 },
+      { key: "g/4", duration: "q", pitchClass: 7 }
+    ];
+
+    const pitchNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    // Mapeamento simples de chaves para cálculo de transposição
+    function transposeKey(keyStr, semitones) {
+      const parts = keyStr.split('/');
+      const name = parts[0].toUpperCase();
+      let octave = parseInt(parts[1]);
+
+      let basePitch = pitchNames.indexOf(name);
+      if (basePitch === -1) {
+        // Trata acidentes básicos se houver
+        if (name.includes("B")) basePitch = pitchNames.indexOf(name[0]) - 1;
+        if (name.includes("#")) basePitch = pitchNames.indexOf(name[0]) + 1;
+      }
+
+      let newPitch = basePitch + semitones;
+      while (newPitch >= 12) { newPitch -= 12; octave++; }
+      while (newPitch < 0) { newPitch += 12; octave--; }
+
+      let noteName = pitchNames[newPitch].toLowerCase();
+      if (noteName.length > 1) {
+        noteName = noteName[0] + "#"; // Simplificação para VexFlow
+      }
+
+      return {
+        key: `${noteName}/${octave}`,
+        pitchClass: newPitch,
+        octave: octave
+      };
+    }
+
+    // --- 2. RENDERIZAÇÃO DA PARTITURA (VEXFLOW) ---
+    function renderScore(semitones) {
+      const div = document.getElementById("paper");
+      div.innerHTML = ""; // Limpa a partitura anterior
+
+      const { Renderer, Stave, StaveNote, Accidental, Formatter } = Vex.Flow;
+      const renderer = new Renderer(div, Renderer.Backends.SVG);
+      renderer.resize(380, 150);
+      const context = renderer.getContext();
+
+      const stave = new Stave(10, 10, 350);
+      stave.addClef("treble").addTimeSignature("3/4");
+      stave.setContext(context).draw();
+
+      const vexNotes = notesBachOriginal.map(note => {
+        const transposed = transposeKey(note.key, semitones);
+        const staveNote = new StaveNote({
+          clef: "treble",
+          keys: [transposed.key],
+          duration: note.duration
+        });
+
+        if (transposed.key.includes("#")) {
+          staveNote.addModifier(new Accidental("#"));
+        }
+        return staveNote;
+      });
+
+      Formatter.FormatAndDraw(context, stave, vexNotes);
+    }
+
+    // --- 3. CENÁRIO 3D (THREE.JS) - MATRIZ HELICOIDAL MPAZ ---
+    const viewport = document.getElementById('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f19);
+
+    const camera = new THREE.PerspectiveCamera(45, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+    camera.position.set(18, 12, 25);
+
+    const renderer3D = new THREE.WebGLRenderer({ antialias: true });
+    renderer3D.setSize(viewport.clientWidth, viewport.clientHeight);
+    viewport.appendChild(renderer3D.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer3D.domElement);
+    controls.enableDamping = true;
+
+    // Iluminação
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0x38bdf8, 1);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    // Eixo Longitudinal (Z - Altura)
+    const axisGrid = new THREE.GridHelper(30, 30, 0x1f2937, 0x111827);
+    axisGrid.position.y = -5;
+    scene.add(axisGrid);
+
+    const axisLineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, -8, 0),
+      new THREE.Vector3(0, 12, 0)
+    ]);
+    const axisLineMat = new THREE.LineDashedMaterial({ color: 0x4b5563, dashSize: 0.5, gapSize: 0.2 });
+    const axisLine = new THREE.Line(axisLineGeo, axisLineMat);
+    axisLine.computeLineDistances();
+    scene.add(axisLine);
+
+    // Variáveis da Hélice
+    let helixMesh, notesGroup = new THREE.Group();
+    scene.add(notesGroup);
+
+    let currentSemitones = 0;
+    let currentAsymmetry = 0.3;
+
+    // Construção Geométrica da Hélice Assimétrica
+    function updateHelix() {
+      if (helixMesh) scene.remove(helixMesh);
+      notesGroup.clear();
+
+      const points = [];
+      const turns = 4;
+      const pointsPerTurn = 60;
+      const totalPoints = turns * pointsPerTurn;
+      const baseRadius = 5;
+      const pitchHeight = 3.5; // Passo da hélice
+
+      // Gerar a curva da Hélice com a Matriz de Assimetria A
+      for (let i = 0; i <= totalPoints; i++) {
+        const t = (i / pointsPerTurn) * Math.PI * 2;
+
+        // Fator assimétrico (deforma a simetria circular)
+        const deformation = 1 + currentAsymmetry * Math.sin(3 * t);
+        const r = baseRadius * deformation;
+
+        const x = r * Math.cos(t);
+        const z = r * Math.sin(t);
+        const y = (t / (Math.PI * 2)) * pitchHeight - 5; // Avanço vertical (altura)
+
+        points.push(new THREE.Vector3(x, y, z));
+      }
+
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tubeGeo = new THREE.TubeGeometry(curve, 200, 0.15, 8, false);
+      const tubeMat = new THREE.MeshStandardMaterial({
+        color: 0x00d2ff,
+        emissive: 0x004466,
+        roughness: 0.2,
+        wireframe: false
+      });
+      helixMesh = new THREE.Mesh(tubeGeo, tubeMat);
+      scene.add(helixMesh);
+
+      // Plotar as notas da partitura de Bach na Hélice
+      notesBachOriginal.forEach((note, index) => {
+        const transposed = transposeKey(note.key, currentSemitones);
+
+        // Mapeamento da Posição Angular e Vertical
+        const angle = (transposed.pitchClass / 12) * Math.PI * 2;
+        const octaveOffset = (transposed.octave - 4) * pitchHeight;
+        const t = angle;
+
+        const deformation = 1 + currentAsymmetry * Math.sin(3 * t);
+        const r = baseRadius * deformation;
+
+        const x = r * Math.cos(t);
+        const z = r * Math.sin(t);
+        const y = (t / (Math.PI * 2)) * pitchHeight - 5 + octaveOffset + (index * 0.2); // Leve deslocamento temporal
+
+        // Criar a Esfera da Nota
+        const noteGeo = new THREE.SphereGeometry(0.4, 16, 16);
+        const noteMat = new THREE.MeshStandardMaterial({ color: 0xff0055, emissive: 0x660022 });
+        const noteSphere = new THREE.Mesh(noteGeo, noteMat);
+        noteSphere.position.set(x, y, z);
+
+        // Linha do Vetor até o Eixo Central
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, y, 0),
+          new THREE.Vector3(x, y, z)
+        ]);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xeab308, transparent: true, opacity: 0.6 });
+        const vectorLine = new THREE.Line(lineGeo, lineMat);
+
+        notesGroup.add(noteSphere);
+        notesGroup.add(vectorLine);
+      });
+    }
+
+    // --- 4. SINTETIZADOR DE ÁUDIO (WEB AUDIO API) ---
+    let audioCtx = null;
+    let isPlaying = false;
+    let activeTimeouts = [];
+
+    function pitchToFrequency(pitchClass, octave) {
+      const midiNote = (octave + 1) * 12 + pitchClass;
+      return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    const durationToSeconds = {
+      "q": 0.6,
+      "8": 0.3
+    };
+
+    async function playBachSequence() {
+      if (isPlaying) return;
+      isPlaying = true;
+
+      const btn = document.getElementById('play-btn');
+      btn.innerText = "⏹ Parar";
+      btn.style.background = "#ef4444";
+
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      let currentTime = audioCtx.currentTime;
+
+      notesBachOriginal.forEach((note, index) => {
+        const transposed = transposeKey(note.key, currentSemitones);
+        const freq = pitchToFrequency(transposed.pitchClass, transposed.octave);
+        const duration = durationToSeconds[note.duration] || 0.5;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, currentTime);
+
+        gain.gain.setValueAtTime(0, currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration - 0.05);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(currentTime);
+        osc.stop(currentTime + duration);
+
+        const timeoutId = setTimeout(() => {
+          if (!isPlaying) return;
+
+          notesGroup.children.forEach(child => {
+            if (child.isMesh) child.material.color.setHex(0xff0055);
+          });
+
+          const meshIndex = index * 2;
+          if (notesGroup.children[meshIndex]) {
+            notesGroup.children[meshIndex].material.color.setHex(0xfacc15);
+          }
+        }, (currentTime - audioCtx.currentTime) * 1000);
+
+        activeTimeouts.push(timeoutId);
+        currentTime += duration;
+      });
+
+      const endTimeoutId = setTimeout(() => {
+        stopAudio();
+      }, (currentTime - audioCtx.currentTime) * 1000);
+
+      activeTimeouts.push(endTimeoutId);
+    }
+
+    function stopAudio() {
+      isPlaying = false;
+      activeTimeouts.forEach(id => clearTimeout(id));
+      activeTimeouts = [];
+
+      const btn = document.getElementById('play-btn');
+      btn.innerText = "▶ Reproduzir Partitura";
+      btn.style.background = "#0284c7";
+
+      if (notesGroup) {
+        notesGroup.children.forEach(child => {
+          if (child.isMesh) child.material.color.setHex(0xff0055);
+        });
+      }
+    }
+
+    // --- 5. EVENTOS E INTERATIVIDADE ---
+    document.getElementById('play-btn').addEventListener('click', () => {
+      if (isPlaying) {
+        stopAudio();
+      } else {
+        playBachSequence();
+      }
+    });
+
+    document.getElementById('transpose-select').addEventListener('change', (e) => {
+      stopAudio();
+      currentSemitones = parseInt(e.target.value);
+      renderScore(currentSemitones);
+      updateHelix();
+    });
+
+    document.getElementById('asymmetry-range').addEventListener('input', (e) => {
+      currentAsymmetry = parseFloat(e.target.value);
+      document.getElementById('asymmetry-val').innerText = `Fator: ${currentAsymmetry.toFixed(2)}`;
+      updateHelix();
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = viewport.clientWidth / viewport.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer3D.setSize(viewport.clientWidth, viewport.clientHeight);
+    });
+
+    // --- 6. INITIALIZATION & LOOP DE ANIMAÇÃO ---
+    renderScore(0);
+    updateHelix();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+
+      if (helixMesh) helixMesh.rotation.y += 0.002;
+      notesGroup.rotation.y += 0.002;
+
+      renderer3D.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

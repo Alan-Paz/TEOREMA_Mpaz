@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema Solar M_Paz - Relatividade, Minkowski & Kerr</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', monospace, sans-serif;
+      background-color: #020617;
+      color: #e2e8f0;
+      overflow: hidden;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 440px;
+      background: #0f172a;
+      border-right: 1px solid #1e293b;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.8);
+      overflow-y: auto;
+    }
+    h1 { font-size: 1.1rem; color: #38bdf8; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+    .subtitle { font-size: 0.72rem; color: #94a3b8; }
+    .control-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.78rem; color: #cbd5e1; display: flex; justify-content: space-between; }
+    input[type="range"], select { width: 100%; accent-color: #38bdf8; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 5px; border-radius: 4px; }
+    .math-box {
+      background: #020617;
+      border: 1px solid #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      color: #a7f3d0;
+      line-height: 1.35;
+    }
+    .telemetry-box {
+      background: #030712;
+      border: 1px solid #1e293b;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: #fbbf24;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    #canvas-container { flex: 1; position: relative; }
+    #info-overlay {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid #1e293b;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>M_Paz: Sistema Solar & Métricas</h1>
+      <p class="subtitle">Alan Aparecido da Silva Paz — Lorentz, Minkowski, Kerr & Newton</p>
+    </div>
+
+    <div class="math-box">
+      <strong>Fundamentação Física do Sistema:</strong><br>
+      • Gravitação Newtoniana: $F = G \frac{M m}{r^2}$<br>
+      • Invariante de Minkowski: $ds^2 = -c^2 dt^2 + dx^2 + dy^2 + dz^2$<br>
+      • Fator de Lorentz: $\gamma = \frac{1}{\sqrt{1 - v^2/c^2}}$<br>
+      • Métrica de Kerr (Rotação): Deformação ergostérica do espaço-tempo<br>
+      • Matriz Helicoidal: $P_n = M_{Paz} \cdot P_{n-1}$
+    </div>
+
+    <div class="control-group">
+      <label for="target-select">Selecionar Corpo de Destino:</label>
+      <select id="target-select">
+        <option value="all">Ver Todos os Corpos (A a Z)</option>
+        <option value="1">Lua (Espectador B)</option>
+        <option value="2">Mercúrio</option>
+        <option value="3">Vênus</option>
+        <option value="4">Marte (Espectador C)</option>
+        <option value="5">Júpiter</option>
+        <option value="6">Saturno</option>
+        <option value="7">Urano</option>
+        <option value="8">Netuno</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="deltak">Espaçamento Axial M_Paz ΔK: <span id="deltak-val">0.30</span></label>
+      <input type="range" id="deltak" min="0.10" max="0.60" step="0.02" value="0.30">
+    </div>
+
+    <div class="telemetry-box" id="telemetry">
+      Calculando distâncias de tempo-luz...
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div id="info-overlay">
+      Linha Amarela Dourada: Propagação do Sinal de Luz ($v=c$)
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(25, 20, 35);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const pLight = new THREE.PointLight(0xfbbf24, 2, 100);
+    pLight.position.set(0, 30, 0);
+    scene.add(pLight);
+
+    const mainGroup = new THREE.Group();
+    scene.add(mainGroup);
+
+    // DADOS FÍSICOS REAIS (Distância média da Terra em Unidades Astronômicas / Segundos-Luz)
+    const SECONDS_PER_LY = 31557600; // Segundos em 1 Ano-Luz
+
+    const celestialBodies = [
+      { name: "Terra (Espectador A)", distAU: 0.0, lightSec: 0.0, color: 0x38bdf8, size: 0.6 },
+      { name: "Lua (Espectador B)", distAU: 0.00257, lightSec: 1.282, color: 0xcbd5e1, size: 0.3 },
+      { name: "Mercúrio", distAU: 0.61, lightSec: 304, color: 0xa3e635, size: 0.45 },
+      { name: "Vênus", distAU: 0.28, lightSec: 139, color: 0xfacc15, size: 0.55 },
+      { name: "Marte (Espectador C)", distAU: 0.52, lightSec: 259, color: 0xef4444, size: 0.5 },
+      { name: "Júpiter", distAU: 4.20, lightSec: 2095, color: 0xf97316, size: 0.9 },
+      { name: "Saturno", distAU: 8.52, lightSec: 4250, color: 0xeab308, size: 0.8 },
+      { name: "Urano", distAU: 18.21, lightSec: 9086, color: 0x06b6d4, size: 0.7 },
+      { name: "Netuno", distAU: 29.09, lightSec: 14515, color: 0x3b82f6, size: 0.7 }
+    ];
+
+    function buildSolarSystemMPaz() {
+      while(mainGroup.children.length > 0) {
+        const obj = mainGroup.children.pop();
+        if(obj.geometry) obj.geometry.dispose();
+      }
+
+      const deltaK = parseFloat(document.getElementById('deltak').value);
+      const targetFilter = document.getElementById('target-select').value;
+      const theta = 7 * Math.PI / 6; // Ângulo característico M_Paz
+
+      const points = [];
+      let r = 1.2;
+
+      celestialBodies.forEach((body, idx) => {
+        const angle = idx * theta;
+        r += 0.8; // Expansão do cone espacio-temporal
+
+        const x = r * Math.cos(angle);
+        const y = idx * deltaK;
+        const z = r * Math.sin(angle);
+
+        const pos = new THREE.Vector3(x, y, z);
+        points.push({ ...body, pos, index: idx });
+      });
+
+      const maxY = celestialBodies.length * deltaK;
+      const maxR = points[points.length - 1].pos.length();
+
+      mainGroup.position.y = -maxY / 2;
+
+      // 1. GRADE MINKOWSKI / NEWTON (Plano Base)
+      const grid = new THREE.GridHelper(maxR * 2.2, 20, 0x38bdf8, 0x1e293b);
+      grid.position.y = 0;
+      mainGroup.add(grid);
+
+      // 2. CONE DE LUZ & HIPOTENUSA (v=c)
+      const diagGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(maxR, maxY, 0)]);
+      const diagMat = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2 });
+      mainGroup.add(new THREE.Line(diagGeo, diagMat));
+
+      const coneGeo = new THREE.ConeGeometry(maxR, maxY, 32, 1, true);
+      coneGeo.translate(0, maxY / 2, 0);
+      const coneMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.08 });
+      mainGroup.add(new THREE.Mesh(coneGeo, coneMat));
+
+      // 3. CURVA HELICOIDAL M_PAZ
+      const ptsVec = points.map(p => p.pos);
+      const helixCurve = new THREE.CatmullRomCurve3(ptsVec);
+      const tubeGeo = new THREE.TubeGeometry(helixCurve, 64, 0.08, 8, false);
+      const tubeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8, roughness: 0.2 });
+      mainGroup.add(new THREE.Mesh(tubeGeo, tubeMat));
+
+      // 4. PLANETAS E CONEXÕES DE LUZ
+      const earthPos = points[0].pos;
+      let telemetryHTML = `<b>ORIGEM: TERRA (Espectador A)</b><br><br>`;
+
+      points.forEach((pt, idx) => {
+        const isSelected = targetFilter === "all" || parseInt(targetFilter) === idx;
+
+        // Malha do Planeta
+        const planetGeo = new THREE.SphereGeometry(pt.size, 24, 24);
+        const planetMat = new THREE.MeshStandardMaterial({
+          color: pt.color,
+          emissive: isSelected ? pt.color : 0x000000,
+          emissiveIntensity: 0.3
+        });
+        const planetMesh = new THREE.Mesh(planetGeo, planetMat);
+        planetMesh.position.copy(pt.pos);
+        mainGroup.add(planetMesh);
+
+        // Anéis Gravitacionais de Kerr (Deformação em Rotação)
+        const kerrGeo = new THREE.BufferGeometry().setFromPoints(
+          new THREE.Path().absarc(0, 0, pt.pos.x, 0, Math.PI * 2, true).getPoints(32).map(p => new THREE.Vector3(p.x, pt.pos.y, p.y))
+        );
+        const kerrMat = new THREE.LineDashedMaterial({ color: pt.color, dashSize: 0.2, gapSize: 0.2, transparent: true, opacity: 0.25 });
+        const kerrRing = new THREE.Line(kerrGeo, kerrMat);
+        kerrRing.computeLineDistances();
+        mainGroup.add(kerrRing);
+
+        // Conexão de Luz da Terra até o Planeta
+        if (idx > 0 && isSelected) {
+          const beamGeo = new THREE.BufferGeometry().setFromPoints([earthPos, pt.pos]);
+          const beamMat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.4, gapSize: 0.2 });
+          const beamLine = new THREE.Line(beamGeo, beamMat);
+          beamLine.computeLineDistances();
+          mainGroup.add(beamLine);
+
+          // Cálculos de Tempo-Luz Real
+          const lightSec = pt.lightSec;
+          const lightMin = (lightSec / 60).toFixed(2);
+          const lightHours = (lightSec / 3600).toFixed(2);
+          const lightYears = (lightSec / SECONDS_PER_LY).toExponential(4);
+
+          telemetryHTML += `➔ <b>Para ${pt.name}:</b><br>`;
+          telemetryHTML += `  • Tempo em Segundos-Luz: <b>${lightSec.toLocaleString()} s</b><br>`;
+          telemetryHTML += `  • Tempo em Minutos/Horas-Luz: <b>${lightMin} min</b> (${lightHours} h)<br>`;
+          telemetryHTML += `  • Distância em Anos-Luz: <b>${lightYears} AL</b><br><br>`;
+        }
+      });
+
+      document.getElementById('telemetry').innerHTML = telemetryHTML;
+    }
+
+    function updateUI() {
+      document.getElementById('deltak-val').innerText = parseFloat(document.getElementById('deltak').value).toFixed(2);
+    }
+
+    ['deltak', 'target-select'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        updateUI();
+        buildSolarSystemMPaz();
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      mainGroup.rotation.y += 0.003;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    updateUI();
+    buildSolarSystemMPaz();
+    animate();
+  </script>
+</body>
+</html>

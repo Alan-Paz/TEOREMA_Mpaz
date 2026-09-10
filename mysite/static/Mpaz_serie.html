@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador M_Paz: Mola Helicoidal Diatônica + Corneta de Gabriel</title>
+  <style>
+    :root {
+      --bg-color: #030712;
+      --card-bg: #0f172a;
+      --accent-paz: #00f2fe;
+      --accent-gabriel: #ffb703;
+      --accent-euler: #ef4444;
+      --accent-laplace: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      background: linear-gradient(135deg, var(--accent-paz), var(--accent-gabriel), var(--accent-euler));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .canvas-box {
+      position: relative;
+      width: 100%;
+      height: 520px;
+      background: #020617;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .canvas-box canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(0,0,0,0.4);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    input[type=range] {
+      flex: 1;
+      background: #1e293b;
+      border-radius: 4px;
+    }
+
+    .formula-box {
+      background: #020617;
+      border-left: 4px solid var(--accent-paz);
+      padding: 10px;
+      border-radius: 0 6px 6px 0;
+      font-family: 'Times New Roman', Times, serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .stat-box {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-val {
+      font-size: 1rem;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .stat-lbl {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Simulador Matemático Operador M<sub>Paz</sub></h1>
+    <p>Acoplamento Geométrico da Hélice Diatônica com a Corneta de Torricelli-Gabriel em Série Infinita</p>
+  </header>
+
+  <div class="main-grid">
+    <div class="card">
+      <h2 style="color: var(--accent-paz)">Visualização Paramétrica 2D</h2>
+      <div class="canvas-box" id="sim-container">
+        <canvas id="simCanvas"></canvas>
+      </div>
+      <div class="controls">
+        <div class="control-row">
+          <label for="paz-n">Iterações Diatônicas M<sub>Paz</sub> (N): <span id="paz-n-val">24</span></label>
+          <input type="range" id="paz-n" min="1" max="120" step="1" value="24" oninput="updateSim()">
+        </div>
+        <div class="control-row">
+          <label for="paz-pitch">Passo Helicoidal (&Delta;K): <span id="paz-pitch-val">0.30</span></label>
+          <input type="range" id="paz-pitch" min="0.05" max="1.00" step="0.05" value="0.30" oninput="updateSim()">
+        </div>
+        <div class="control-row">
+          <label for="paz-a">Atenuação Assintótica da Corneta (a): <span id="paz-a-val">1.00</span></label>
+          <input type="range" id="paz-a" min="0.20" max="3.00" step="0.10" value="1.00" oninput="updateSim()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="color: var(--accent-gabriel)">Formulações e Convergências do Modelo</h2>
+
+      <div class="formula-box">
+        R(z) = a / (z + 1)
+      </div>
+
+      <div class="formula-box" style="border-color: var(--accent-gabriel)">
+        M<sub>Paz</sub> =
+        &lbrack;
+        cos(7&pi;/6), 0, -sin(7&pi;/6);
+        0, 1, &Delta;K;
+        sin(7&pi;/6), 0, cos(7&pi;/6)
+        &rbrack;
+      </div>
+
+      <div class="formula-box" style="border-color: var(--accent-euler)">
+        r(n) = R(z<sub>n</sub>) &middot; &lbrack; cos(7n&pi;/6), sin(7n&pi;/6), z<sub>n</sub> &rbrack;
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+        A simulação integra a travessia helicoidal diatônica sob o operador de rotação angular de 210° (7&pi;/6) de Alan Paz, restringindo o raio ao contorno da Corneta de Gabriel y = 1/x. Conforme a série caminha ao infinito (z &to; &infin;), o raio orbital converge assintoticamente a zero, integrando um volume finito sob área de superfície infinita.
+      </p>
+
+      <div class="stat-box">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-note" style="color: var(--accent-paz)">Dó (C)</div>
+          <div class="stat-lbl">Nota no Vértice Atual</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-radius" style="color: var(--accent-gabriel)">1.000</div>
+          <div class="stat-lbl">Raio da Mola R(z)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-volume" style="color: var(--accent-laplace)">&pi; u.v.</div>
+          <div class="stat-lbl">Volume Limite (&int; &pi; y&sup2; dz)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-area" style="color: var(--accent-euler)">&infin;</div>
+          <div class="stat-lbl">Área de Superfície</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const pazNotes = ["Dó", "Sol", "Ré", "Lá", "Mi", "Si", "Fá♯/Sol♭", "Dó♯/Ré♭", "Lá♭", "Mi♭", "Si♭", "Fá"];
+    let canvas, ctx;
+
+    function init() {
+      canvas = document.getElementById('simCanvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      updateSim();
+    }
+
+    function resizeCanvas() {
+      const box = document.getElementById('sim-container');
+      canvas.width = box.clientWidth;
+      canvas.height = box.clientHeight;
+    }
+
+    function updateSim() {
+      if (!ctx) return;
+
+      const N = parseInt(document.getElementById('paz-n').value);
+      const deltaK = parseFloat(document.getElementById('paz-pitch').value);
+      const a = parseFloat(document.getElementById('paz-a').value);
+
+      document.getElementById('paz-n-val').innerText = N;
+      document.getElementById('paz-pitch-val').innerText = deltaK.toFixed(2);
+      document.getElementById('paz-a-val').innerText = a.toFixed(2);
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Eixos do Gráfico
+      const padding = 50;
+      const originX = padding;
+      const originY = h / 2;
+      const scaleX = (w - 2 * padding) / (N * deltaK + 1);
+      const scaleY = (h / 2 - padding) / (a * 1.2);
+
+      // Eixo Z (Eixo central)
+      ctx.beginPath();
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.moveTo(originX, originY);
+      ctx.lineTo(w - padding, originY);
+      ctx.stroke();
+
+      // Envoltória Superior e Inferior da Corneta de Gabriel: R(z) = a / (z + 1)
+      ctx.beginPath();
+      ctx.strokeStyle = '#ffb703';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+
+      for (let px = 0; px <= (w - 2 * padding); px += 2) {
+        let z = px / scaleX;
+        let r = a / (z + 1);
+        let screenY = originY - r * scaleY;
+        if (px === 0) ctx.moveTo(originX + px, screenY);
+        else ctx.lineTo(originX + px, screenY);
+      }
+
+      for (let px = (w - 2 * padding); px >= 0; px -= 2) {
+        let z = px / scaleX;
+        let r = a / (z + 1);
+        let screenY = originY + r * scaleY;
+        ctx.lineTo(originX + px, screenY);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Trajetória Helicoidal Diatônica M_Paz
+      ctx.beginPath();
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 2;
+
+      const stepsPerIteration = 20;
+      const totalSteps = N * stepsPerIteration;
+
+      for (let i = 0; i <= totalSteps; i++) {
+        let stepFrac = i / stepsPerIteration;
+        let z = stepFrac * deltaK;
+        let radius = a / (z + 1);
+        let theta = (7 * Math.PI / 6) * stepFrac;
+
+        let projY = radius * Math.sin(theta);
+
+        let screenX = originX + z * scaleX;
+        let screenY = originY - projY * scaleY;
+
+        if (i === 0) ctx.moveTo(screenX, screenY);
+        else ctx.lineTo(screenX, screenY);
+      }
+      ctx.stroke();
+
+      // Vértices Diatônicos
+      for (let n = 0; n <= N; n++) {
+        let z = n * deltaK;
+        let radius = a / (z + 1);
+        let theta = (7 * Math.PI / 6) * n;
+
+        let projY = radius * Math.sin(theta);
+        let screenX = originX + z * scaleX;
+        let screenY = originY - projY * scaleY;
+
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, n === N ? 6 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = n === N ? '#ef4444' : '#00f2fe';
+        ctx.fill();
+      }
+
+      // Atualização dos painéis
+      const lastZ = N * deltaK;
+      const lastRadius = a / (lastZ + 1);
+      document.getElementById('stat-note').innerText = `${pazNotes[N % 12]} (n=${N})`;
+      document.getElementById('stat-radius').innerText = lastRadius.toFixed(3);
+    }
+
+    window.onload = init;
+    window.onresize = () => {
+      resizeCanvas();
+      updateSim();
+    };
+  </script>
+</body>
+</html>

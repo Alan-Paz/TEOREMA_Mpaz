@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M_Paz - Curvatura do Espaço-Tempo & Trajetória Nuclear</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', monospace, sans-serif;
+      background-color: #020617;
+      color: #e2e8f0;
+      overflow: hidden;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 420px;
+      background: #0f172a;
+      border-right: 1px solid #1e293b;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.8);
+      overflow-y: auto;
+    }
+    h1 { font-size: 1.15rem; color: #38bdf8; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+    .subtitle { font-size: 0.72rem; color: #94a3b8; }
+    .control-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.78rem; color: #cbd5e1; display: flex; justify-content: space-between; }
+    input[type="range"] { width: 100%; accent-color: #38bdf8; background: #1e293b; }
+    .math-box {
+      background: #020617;
+      border: 1px solid #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      color: #a7f3d0;
+      line-height: 1.35;
+    }
+    .telemetry-box {
+      background: #030712;
+      border: 1px solid #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: #fbbf24;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    #canvas-container { flex: 1; position: relative; }
+    #info-overlay {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(6px);
+      border: 1px solid #1e293b;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>Missão Interplanetária M_Paz</h1>
+      <p class="subtitle">Curvatura Gravitacional & Propulsão Nuclear (Terra ➔ Lua ➔ Marte)</p>
+    </div>
+
+    <div class="math-box">
+      <strong>Relatividade & Operador M_Paz:</strong><br>
+      • Deformação do Espaço-Tempo: z(r) = -G·M / (r + ε)<br>
+      • Trajetória da Nave: P_n = M_Paz · P_{n-1} + v_propulsao<br>
+      • Propulsão Nuclear Thermal Rocket (NTR): Impulse I_sp = 900s
+    </div>
+
+    <div class="control-group">
+      <label for="warp">Intensidade da Gravidade (Curvatura): <span id="warp-val">1.5</span></label>
+      <input type="range" id="warp" min="0.5" max="3.0" step="0.1" value="1.5">
+    </div>
+
+    <div class="control-group">
+      <label for="deltak">Passo Axial M_Paz ΔK: <span id="deltak-val">0.25</span></label>
+      <input type="range" id="deltak" min="0.05" max="0.60" step="0.05" value="0.25">
+    </div>
+
+    <div class="control-group">
+      <label for="speed">Velocidade da Nave Nuclear: <span id="speed-val">1.0</span></label>
+      <input type="range" id="speed" min="0.2" max="3.0" step="0.1" value="1.0">
+    </div>
+
+    <div class="telemetry-box" id="telemetry">
+      Iniciando telemetria gravitacional...
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div id="info-overlay">
+      Malha de Espaço-Tempo Deformável | Rotação Interativa com Mouse
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(30, 35, 55);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // ILUMINAÇÃO
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(50, 50, 50);
+    scene.add(sunLight);
+
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    // CORPOS CELESTES (Posições no Plano Relativístico)
+    const bodies = {
+      earth: { pos: new THREE.Vector3(-18, 0, 0), mass: 6.0, radius: 2.2, color: 0x38bdf8, name: 'Terra' },
+      moon:  { pos: new THREE.Vector3(-8, 0, -12), mass: 1.2, radius: 0.8, color: 0x94a3b8, name: 'Lua' },
+      mars:  { pos: new THREE.Vector3(22, 0, 15), mass: 3.5, radius: 1.6, color: 0xef4444, name: 'Marte' }
+    };
+
+    let gridGeometry, gridMesh, shipMesh, shipTrail, trailGeometry;
+    let waypoints = [];
+    let currentStep = 0;
+
+    // 1. CONSTRUÇÃO DA MALHA DO ESPAÇO-TEMPO DEFORMÁVEL
+    function createSpacetimeGrid(warpFactor) {
+      const size = 80;
+      const divisions = 60;
+      gridGeometry = new THREE.PlaneGeometry(size, size, divisions, divisions);
+      gridGeometry.rotateX(-Math.PI / 2);
+
+      const posAttr = gridGeometry.attributes.position;
+
+      for (let i = 0; i < posAttr.count; i++) {
+        const x = posAttr.getX(i);
+        const z = posAttr.getZ(i);
+        let depth = 0;
+
+        // Calcule o poço de potencial gravitacional z(r) = -G * M / (distance + eps)
+        Object.values(bodies).forEach(b => {
+          const dx = x - b.pos.x;
+          const dz = z - b.pos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          depth -= (b.mass * warpFactor * 2.5) / (dist + 1.8);
+        });
+
+        posAttr.setY(i, depth);
+      }
+
+      gridGeometry.computeVertexNormals();
+
+      const gridMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.5
+      });
+
+      if (gridMesh) worldGroup.remove(gridMesh);
+      gridMesh = new THREE.Mesh(gridGeometry, gridMat);
+      worldGroup.add(gridMesh);
+    }
+
+    // 2. ADICIONAR PLANETAS À CENA
+    function createPlanets(warpFactor) {
+      Object.values(bodies).forEach(b => {
+        // Obter a profundidade z da malha na posição do planeta
+        const depth = Object.values(bodies).reduce((acc, other) => {
+          const dist = b.pos.distanceTo(other.pos);
+          return acc - (other.mass * warpFactor * 2.5) / (dist + 1.8);
+        }, 0);
+
+        const geo = new THREE.SphereGeometry(b.radius, 32, 32);
+        const mat = new THREE.MeshStandardMaterial({ color: b.color, roughness: 0.4 });
+        const mesh = new THREE.Mesh(geo, mat);
+
+        mesh.position.set(b.pos.x, depth + b.radius, b.pos.z);
+        worldGroup.add(mesh);
+      });
+    }
+
+    // 3. TRAJETÓRIA HELICOIDAL M_PAZ DA NAVE (Terra ➔ Órbita da Lua ➔ Marte)
+    function generateNuclearPath(deltaK) {
+      waypoints = [];
+      const theta = 7 * Math.PI / 6; // Angulo característico M_Paz
+
+      // Fase 1: Fuga do Poço da Terra
+      for (let i = 0; i < 20; i++) {
+        const r = 2.5 + i * 0.2;
+        const angle = i * theta;
+        const x = bodies.earth.pos.x + r * Math.cos(angle);
+        const z = bodies.earth.pos.z + r * Math.sin(angle);
+        const y = i * deltaK - 3.0;
+        waypoints.push(new THREE.Vector3(x, y, z));
+      }
+
+      // Fase 2: Inserção e Giro na Órbita da Lua
+      for (let i = 0; i < 15; i++) {
+        const r = 2.0;
+        const angle = i * (Math.PI / 4);
+        const x = bodies.moon.pos.x + r * Math.cos(angle);
+        const z = bodies.moon.pos.z + r * Math.sin(angle);
+        const y = 1.0 + i * (deltaK * 0.5);
+        waypoints.push(new THREE.Vector3(x, y, z));
+      }
+
+      // Fase 3: Transição Espaço Cósmico / Propulsão Nuclear até Marte
+      const lastPt = waypoints[waypoints.length - 1];
+      const stepsToMars = 35;
+      for (let i = 1; i <= stepsToMars; i++) {
+        const t = i / stepsToMars;
+        const interp = new THREE.Vector3().lerpVectors(lastPt, bodies.mars.pos, t);
+        // Hélice de perturbação helicoidal M_Paz no espaço profundo
+        interp.x += Math.cos(i * theta) * (1.5 * (1 - t));
+        interp.z += Math.sin(i * theta) * (1.5 * (1 - t));
+        interp.y = 2.0 + Math.sin(t * Math.PI) * 5.0;
+        waypoints.push(interp);
+      }
+    }
+
+    // 4. CRIAÇÃO DA NAVE COM PROPULSÃO NUCLEAR
+    function createNuclearShip() {
+      const shipGroup = new THREE.Group();
+
+      // Módulo Principal
+      const bodyGeo = new THREE.CylinderGeometry(0.3, 0.4, 1.8, 8);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8 });
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bodyMesh.rotateZ(Math.PI / 2);
+      shipGroup.add(bodyMesh);
+
+      // Reator Nuclear / Motor Térmico (Plume Brilhante Cyan)
+      const engineGeo = new THREE.ConeGeometry(0.35, 1.2, 12);
+      const engineMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+      const engineMesh = new THREE.Mesh(engineGeo, engineMat);
+      engineMesh.position.set(-1.1, 0, 0);
+      engineMesh.rotateZ(-Math.PI / 2);
+      shipGroup.add(engineMesh);
+
+      shipMesh = shipGroup;
+      worldGroup.add(shipMesh);
+
+      // Trilha de plasma da nave
+      trailGeometry = new THREE.BufferGeometry();
+      const trailMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
+      shipTrail = new THREE.Line(trailGeometry, trailMat);
+      worldGroup.add(shipTrail);
+    }
+
+    function rebuildSimulation() {
+      while(worldGroup.children.length > 0) {
+        const obj = worldGroup.children.pop();
+        if(obj.geometry) obj.geometry.dispose();
+      }
+
+      const warp = parseFloat(document.getElementById('warp').value);
+      const deltaK = parseFloat(document.getElementById('deltak').value);
+
+      createSpacetimeGrid(warp);
+      createPlanets(warp);
+      generateNuclearPath(deltaK);
+      createNuclearShip();
+      currentStep = 0;
+    }
+
+    function updateUI() {
+      document.getElementById('warp-val').innerText = parseFloat(document.getElementById('warp').value).toFixed(1);
+      document.getElementById('deltak-val').innerText = parseFloat(document.getElementById('deltak').value).toFixed(2);
+      document.getElementById('speed-val').innerText = parseFloat(document.getElementById('speed').value).toFixed(1);
+    }
+
+    ['warp', 'deltak'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        updateUI();
+        rebuildSimulation();
+      });
+    });
+
+    document.getElementById('speed').addEventListener('input', updateUI);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // LOOP DE ANIMAÇÃO DA TRAJETÓRIA
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (waypoints.length > 0 && shipMesh) {
+        const speed = parseFloat(document.getElementById('speed').value);
+        currentStep += 0.15 * speed;
+
+        if (currentStep >= waypoints.length - 1) {
+          currentStep = 0; // Reinicia a missão
+        }
+
+        const idx = Math.floor(currentStep);
+        const nextIdx = Math.min(idx + 1, waypoints.length - 1);
+        const alpha = currentStep - idx;
+
+        // Interpolação suave de posição
+        const pos = new THREE.Vector3().lerpVectors(waypoints[idx], waypoints[nextIdx], alpha);
+        shipMesh.position.copy(pos);
+
+        // Aponta a nave para a direção do movimento
+        const dir = new THREE.Vector3().subVectors(waypoints[nextIdx], waypoints[idx]).normalize();
+        if (dir.length() > 0) {
+          shipMesh.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+        }
+
+        // Atualização da trilha de plasma
+        const activeTrail = waypoints.slice(0, idx + 1);
+        activeTrail.push(pos);
+        trailGeometry.setFromPoints(activeTrail);
+
+        // Telemetria dinâmica
+        let status = "Saindo da Gravidade da Terra";
+        if (idx > 20 && idx <= 35) status = "Em Órbita Lunar / Assistência Gravitacional";
+        if (idx > 35) status = "Propulsão Nuclear no Espaço Cósmico ➔ Marte";
+
+        document.getElementById('telemetry').innerHTML = `
+          <b>STATUS DA MISSÃO:</b> ${status}<br>
+          • Propulsor: Nuclear Thermal Rocket (NTR)<br>
+          • Posição P_n (M_Paz): X:${pos.x.toFixed(1)}, Y:${pos.y.toFixed(1)}, Z:${pos.z.toFixed(1)}<br>
+          • Estágio da Trajetória: Step ${idx}/${waypoints.length}
+        `;
+      }
+
+      worldGroup.rotation.y += 0.001; // Giro suave para perspectiva 3D
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    updateUI();
+    rebuildSimulation();
+    animate();
+  </script>
+</body>
+</html>

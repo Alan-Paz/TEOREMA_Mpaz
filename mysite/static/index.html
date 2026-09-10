@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hélice Helicoidal 3D & Série Harmônica Euleriana</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: #151d2a;
+      --accent-cyan: #00f2fe;
+      --accent-purple: #9d4edd;
+      --accent-amber: #ffb703;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #243247;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      color: var(--accent-cyan);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      background: #050811;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(0,0,0,0.25);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--accent-cyan);
+    }
+
+    .stat-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-val {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--accent-amber);
+      font-family: monospace;
+    }
+
+    .stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .explanation {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      background: rgba(157, 78, 221, 0.08);
+      border-left: 3px solid var(--accent-purple);
+      padding: 10px 12px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .math {
+      font-family: 'Times New Roman', Times, serif;
+      font-style: italic;
+      color: var(--accent-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Hélice Helicoidal 3D & Série Harmônica Euleriana</h1>
+    <p>Representação Complexa Euleriana: <span class="math">e^{iθ} = \cos(θ) + i\sin(θ)</span> e Amostragem Harmônica <span class="math">1/n</span></p>
+  </header>
+
+  <div class="grid-layout">
+    <!-- Painel 3D: Hélice Helicoidal -->
+    <div class="card">
+      <h2>1. Visualização 3D da Hélice Helicoidal Euleriana</h2>
+
+      <div id="canvas-container">
+        <canvas id="helixCanvas"></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="control-row">
+          <label for="turns-range">Voltas da Hélice: <span id="turns-val" class="highlight">4</span></label>
+          <input type="range" id="turns-range" min="1" max="10" value="4" oninput="updateHelix()">
+        </div>
+        <div class="control-row">
+          <label for="pitch-range">Passo Helicoidal (Z): <span id="pitch-val" class="highlight">1.0</span></label>
+          <input type="range" id="pitch-range" min="0.5" max="3.0" step="0.1" value="1.0" oninput="updateHelix()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel Matemático: Série Harmônica em Euler -->
+    <div class="card">
+      <h2>2. Série Harmônica no Plano Complexo de Euler</h2>
+
+      <div class="explanation">
+        <strong>Fórmula de Euler no Espaço Helicoidal:</strong>
+        <br>
+        A hélice helicoidal é definida parametricamente por:
+        <br>
+        <span class="math">γ(t) = r(t) · e^{i ω t} + z(t) k̂</span>
+        <br><br>
+        Quando ponderada pela <strong>Série Harmônica</strong> <span class="math">r(n) = 1/n</span>, o raio amortecido gera uma espiral/hélice convergente no plano complexo enquanto avança verticalmente ao longo do eixo <span class="math">Z</span>.
+      </div>
+
+      <div class="controls">
+        <div class="control-row">
+          <label for="terms-range">Termos da Série Harmônica (N): <span id="terms-val" class="highlight">20</span></label>
+          <input type="range" id="terms-range" min="1" max="100" value="20" oninput="updateHelix()">
+        </div>
+      </div>
+
+      <div class="stat-box">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-hn">0.00</div>
+          <div class="stat-lbl">Soma Harmônica H_N (Σ 1/n)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-ln">0.00</div>
+          <div class="stat-lbl">Aproximação ln(N) + γ</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-radius">0.00</div>
+          <div class="stat-lbl">Último Raio (1/N)</div>
+        </div>
+      </div>
+
+      <div class="explanation">
+        <strong>Conexão Euleriana:</strong>
+        Como a série harmônica diverge logaritmicamente, a soma total <span class="math">H_N = \sum_{n=1}^N rac{1}{n}</span> aproxima-se de <span class="math">\ln(N) + \gamma</span> (onde <span class="math">\gamma pprox 0.57721</span> é a constante de Euler-Mascheroni).
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('helixCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let angleX = 0.6;
+    let angleY = 0.4;
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvas-container');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      drawHelix();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // Controles de Rotação 3D com o Mouse
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - previousMousePosition.x;
+      const deltaY = e.clientY - previousMousePosition.y;
+
+      angleY += deltaX * 0.01;
+      angleX += deltaY * 0.01;
+
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+      drawHelix();
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    function project3D(x, y, z, width, height) {
+      // Rotação Y
+      let x1 = x * Math.cos(angleY) + z * Math.sin(angleY);
+      let z1 = -x * Math.sin(angleY) + z * Math.cos(angleY);
+
+      // Rotação X
+      let y2 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
+      let z2 = y * Math.sin(angleX) + z1 * Math.cos(angleX);
+
+      // Projeção perspectiva simples
+      const fov = 350;
+      const distance = 4;
+      const scale = fov / (distance + z2);
+
+      return {
+        x: width / 2 + x1 * scale,
+        y: height / 2 + y2 * scale,
+        scale: scale
+      };
+    }
+
+    function updateHelix() {
+      document.getElementById('turns-val').innerText = document.getElementById('turns-range').value;
+      document.getElementById('pitch-val').innerText = document.getElementById('pitch-range').value;
+      document.getElementById('terms-val').innerText = document.getElementById('terms-range').value;
+      drawHelix();
+    }
+
+    function drawHelix() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const turns = parseFloat(document.getElementById('turns-range').value);
+      const pitch = parseFloat(document.getElementById('pitch-range').value);
+      const maxN = parseInt(document.getElementById('terms-range').value);
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Desenhar Eixos 3D
+      const origin = project3D(0, 0, 0, w, h);
+      const axisZ = project3D(0, 0, 2.5, w, h);
+
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(axisZ.x, axisZ.y);
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 1. Desenhar a Hélice Contínua
+      ctx.beginPath();
+      const steps = 300;
+      let first = true;
+
+      for (let i = 0; i <= steps; i++) {
+        let t = (i / steps) * (turns * 2 * Math.PI);
+        let z = (i / steps) * pitch - (pitch / 2); // Centralizado em Z
+
+        // Equação Euleriana: e^{i t} = cos(t) + i sin(t)
+        let radius = 0.8;
+        let x = radius * Math.cos(t);
+        let y = radius * Math.sin(t);
+
+        let p = project3D(x, y, z, w, h);
+
+        if (first) {
+          ctx.moveTo(p.x, p.y);
+          first = false;
+        } else {
+          ctx.lineTo(p.x, p.y);
+        }
+      }
+
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 2. Pontos Amostrados pela Série Harmônica r(n) = 1/n
+      let sumH = 0;
+      const eulerMascheroni = 0.5772156649;
+
+      for (let n = 1; n <= maxN; n++) {
+        sumH += 1 / n;
+
+        let theta = (n / maxN) * (turns * 2 * Math.PI);
+        let z = (n / maxN) * pitch - (pitch / 2);
+
+        // Raio modulado harmonicamente por 1/n
+        let rHarmonic = (1 / Math.sqrt(n)) * 0.8;
+        let x = rHarmonic * Math.cos(theta);
+        let y = rHarmonic * Math.sin(theta);
+
+        let p = project3D(x, y, z, w, h);
+
+        // Desenhar nó harmônico
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(2, 6 * (p.scale / 300)), 0, Math.PI * 2);
+        ctx.fillStyle = '#ffb703';
+        ctx.fill();
+        ctx.strokeStyle = '#9d4edd';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Atualizar Estatísticas
+      const approxLn = Math.log(maxN) + eulerMascheroni;
+      document.getElementById('stat-hn').innerText = sumH.toFixed(4);
+      document.getElementById('stat-ln').innerText = approxLn.toFixed(4);
+      document.getElementById('stat-radius').innerText = (1 / maxN).toFixed(4);
+    }
+
+    // Inicialização
+    window.onload = () => {
+      resizeCanvas();
+      updateHelix();
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Métrica Kerr-Lorentz-Einstein-MPaz - Bach</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0b0f19;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background-color: #1e293b;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      max-width: 1000px;
+      width: 100%;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 5px;
+      color: #38bdf8;
+    }
+
+    h2 {
+      font-size: 0.95rem;
+      font-weight: normal;
+      color: #94a3b8;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    select, button {
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    select {
+      background-color: #334155;
+      color: #ffffff;
+    }
+
+    button.btn-render {
+      background-color: #0284c7;
+      color: white;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+
+    button.btn-render:hover {
+      background-color: #0369a1;
+    }
+
+    button.btn-play {
+      background-color: #16a34a;
+      color: white;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+
+    button.btn-play:hover {
+      background-color: #15803d;
+    }
+
+    button:disabled {
+      background-color: #64748b;
+      cursor: not-allowed;
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    #partitura {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 15px;
+      display: flex;
+      justify-content: center;
+      overflow-x: auto;
+    }
+
+    .canvas-card {
+      background-color: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      padding: 10px;
+      position: relative;
+    }
+
+    .canvas-title {
+      font-size: 0.85rem;
+      color: #38bdf8;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    #helixCanvas {
+      width: 100%;
+      height: 250px;
+      border-radius: 6px;
+      background-color: #050811;
+    }
+
+    .math-card {
+      background-color: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      padding: 15px;
+      text-align: left;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      overflow-y: auto;
+      max-height: 250px;
+    }
+
+    .matrix-log {
+      margin-top: 15px;
+      text-align: left;
+      background-color: #050811;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.8rem;
+      color: #4ade80;
+      max-height: 160px;
+      overflow-y: auto;
+      border: 1px solid #1e293b;
+    }
+
+    .badge {
+      background-color: #0369a1;
+      color: #e0f2fe;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Modelo Relativístico Kerr-Lorentz ($M_{\text{Paz}}$) <span class="badge">Bach</span></h1>
+    <h2>Teorema de Alan Aparecido da Silva Paz — Buraco Negro em Rotação & Deformação Temporal</h2>
+
+    <div class="controls">
+      <select id="transposicao" onchange="executarAlgoritmo()">
+        <option value="0">Original (Ré Menor)</option>
+        <option value="2">Transpor +2 Semitons (Mi Menor)</option>
+        <option value="-2">Transpor -2 Semitons (Dó Menor)</option>
+        <option value="7">Transpor +7 Semitons (Lá Menor)</option>
+      </select>
+
+      <button class="btn-render" onclick="executarAlgoritmo()">Analisar & Renderizar</button>
+      <button class="btn-play" id="btnPlay" onclick="tocarVioloncelo()">▶ Tocar Violoncelo</button>
+    </div>
+
+    <div id="partitura"></div>
+
+    <div class="grid-layout">
+      <div class="canvas-card">
+        <div class="canvas-title">Espaço-Tempo Kerr 3D ($M_{\text{Paz}}$ + Ergosfera)</div>
+        <div id="helixCanvas"></div>
+      </div>
+
+      <div class="math-card" id="mathDisplay">
+        <div class="canvas-title">Formulacional Kerr-Lorentz-Paz</div>
+        <div id="eqKerr">
+          \[ ds^2 = -\left(1 - \frac{r_s r}{\rho^2}\right) dt^2 - \frac{2 r_s r a \sin^2\theta}{\rho^2} dt d\phi + \frac{\rho^2}{\Delta} dr^2 + \rho^2 d\theta^2 \]
+        </div>
+        <div id="eqLorentz">
+          \[ \gamma = \frac{1}{\sqrt{1 - v^2/c^2}}, \quad f_{\text{obs}} = \frac{f_{\text{emit}}}{\gamma \left(1 - \frac{v}{c} \cos\theta\right)} \]
+        </div>
+        <div id="eqMPaz">
+          \[ M_{\text{Paz-Kerr}} = \gamma \cdot \begin{bmatrix} \cos(\theta_n) & -\sin(\theta_n) & 0 \\ \sin(\theta_n) & \cos(\theta_n) & \Delta K \\ 0 & 0 & 1 \end{bmatrix} \]
+        </div>
+      </div>
+    </div>
+
+    <div class="matrix-log" id="logMatriz">Aguardando processamento...</div>
+  </div>
+
+  <script>
+    const TEMA_BACH = [
+      { nota: "d/4", duracao: "8" },
+      { nota: "f/4", duracao: "8" },
+      { nota: "e/4", duracao: "8" },
+      { nota: "d/4", duracao: "8" },
+      { nota: "c#/4", duracao: "8" },
+      { nota: "d/4", duracao: "8" },
+      { nota: "e/4", duracao: "8" },
+      { nota: "a/3", duracao: "8" }
+    ];
+
+    const MAPA_NOTAS_MIDI = {
+      "c": 0, "c#": 1, "d": 2, "d#": 3, "e": 4, "f": 5,
+      "f#": 6, "g": 7, "g#": 8, "a": 9, "a#": 10, "b": 11
+    };
+
+    let freqsTemaAtuais = [];
+    let coordenadasPaz = [];
+    let audioCtx = null;
+    let scene, camera, renderer, helixMesh, ergosferaMesh, singularityMesh, noteSpheres = [];
+
+    function notaParaFrequencia(stringNota, semitonsOffset = 0) {
+      const [puro, oitava] = stringNota.split('/');
+      const semitomBase = MAPA_NOTAS_MIDI[puro];
+      const numeroMidi = (parseInt(oitava) + 1) * 12 + semitomBase + semitonsOffset;
+      return 440 * Math.pow(2, (numeroMidi - 69) / 12);
+    }
+
+    function frequenciaParaNotaVexFlow(freq) {
+      const nomes = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
+      const midi = Math.round(69 + 12 * Math.log2(freq / 440));
+      const nomeNota = nomes[(midi % 12 + 12) % 12];
+      const oitava = Math.floor(midi / 12) - 1;
+      return `${nomeNota}/${oitava}`;
+    }
+
+    function mpazKerrLorentzEngine(frequencias, fRef = 261.63, aSpin = 0.85) {
+      const matrizHelicoidal = [];
+      const thetaStep = (7 * Math.PI) / 6;
+
+      frequencias.forEach((freq, idx) => {
+        const n = idx + 1;
+
+        const omegaKerr = (2 * aSpin) / Math.pow(n + 1, 1.5);
+        const theta = n * thetaStep + omegaKerr;
+
+        const v_c = 0.3 + (idx * 0.05);
+        const gamma = 1 / Math.sqrt(1 - Math.pow(v_c, 2));
+
+        const shiftKerr = Math.sqrt(Math.max(0.1, 1 - (2 / (n + 0.8))));
+        const freqRelativistica = (freq * shiftKerr) / gamma;
+
+        const r = 2.5 + Math.log2(freqRelativistica / fRef);
+        const x = r * Math.cos(theta);
+        const z = r * Math.sin(theta);
+        const y = (n * 0.4 - 1.8) * gamma;
+
+        matrizHelicoidal.push({
+          indice: n,
+          freqHz: freq.toFixed(2),
+          freqRelativisticaHz: freqRelativistica.toFixed(2),
+          notaNome: frequenciaParaNotaVexFlow(freqRelativistica),
+          coordX: x.toFixed(4),
+          coordY: y.toFixed(4),
+          coordZ: z.toFixed(4),
+          gammaLorentz: gamma.toFixed(4),
+          omegaKerr: omegaKerr.toFixed(4),
+          piPaz: ((6 * Math.abs(thetaStep)) / 7).toFixed(5)
+        });
+      });
+
+      return matrizHelicoidal;
+    }
+
+    function initThreeJS() {
+      const container = document.getElementById('helixCanvas');
+      container.innerHTML = '';
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
+
+      const light = new THREE.DirectionalLight(0x38bdf8, 1.2);
+      light.position.set(5, 10, 7).normalize();
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0x221133));
+
+      camera.position.set(0, 4, 10);
+      camera.lookAt(0, 0, 0);
+
+      const singGeo = new THREE.SphereGeometry(0.5, 32, 32);
+      const singMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      singularityMesh = new THREE.Mesh(singGeo, singMat);
+      scene.add(singularityMesh);
+
+      const ergoGeo = new THREE.SphereGeometry(1.2, 32, 16);
+      ergoGeo.scale(1.5, 0.8, 1.5);
+      const ergoMat = new THREE.MeshBasicMaterial({ color: 0xa855f7, wireframe: true, transparent: true, opacity: 0.25 });
+      ergosferaMesh = new THREE.Mesh(ergoGeo, ergoMat);
+      scene.add(ergosferaMesh);
+
+      const points = coordenadasPaz.map(p => new THREE.Vector3(parseFloat(p.coordX), parseFloat(p.coordY), parseFloat(p.coordZ)));
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geometry = new THREE.TubeGeometry(curve, 64, 0.06, 8, false);
+      const material = new THREE.MeshBasicMaterial({ color: 0x0284c7, wireframe: true });
+      helixMesh = new THREE.Mesh(geometry, material);
+      scene.add(helixMesh);
+
+      noteSpheres = [];
+      coordenadasPaz.forEach((p) => {
+        const sphereGeo = new THREE.SphereGeometry(0.18, 16, 16);
+        const sphereMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, emissive: 0x0284c7 });
+        const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+        sphere.position.set(parseFloat(p.coordX), parseFloat(p.coordY), parseFloat(p.coordZ));
+        scene.add(sphere);
+        noteSpheres.push(sphere);
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+        ergosferaMesh.rotation.y += 0.02;
+        if (helixMesh) helixMesh.rotation.y += 0.003;
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    function destacarNota3D(index) {
+      noteSpheres.forEach((s, idx) => {
+        if (idx === index) {
+          s.material.color.setHex(0xfacc15);
+          s.material.emissive.setHex(0xeab308);
+          s.scale.set(1.8, 1.8, 1.8);
+        } else {
+          s.material.color.setHex(0x38bdf8);
+          s.material.emissive.setHex(0x0284c7);
+          s.scale.set(1.0, 1.0, 1.0);
+        }
+      });
+    }
+
+    function tocarNotaVioloncelo(freq, tempoInicio, duracaoSeg) {
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, tempoInicio);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(600, tempoInicio);
+
+      gainNode.gain.setValueAtTime(0.001, tempoInicio);
+      gainNode.gain.linearRampToValueAtTime(0.3, tempoInicio + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, tempoInicio + duracaoSeg);
+
+      osc.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      osc.start(tempoInicio);
+      osc.stop(tempoInicio + duracaoSeg);
+    }
+
+    async function tocarVioloncelo() {
+      const btn = document.getElementById('btnPlay');
+      btn.disabled = true;
+      btn.innerText = "🔊 Executando Som...";
+
+      // Inicialização garantida do AudioContext na ação do usuário
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      const tempoAtual = audioCtx.currentTime + 0.05;
+      const duracaoColcheia = 0.4;
+
+      coordenadasPaz.forEach((p, idx) => {
+        const freqRelativistica = parseFloat(p.freqRelativisticaHz);
+        const momentoNota = tempoAtual + (idx * duracaoColcheia);
+
+        tocarNotaVioloncelo(freqRelativistica, momentoNota, duracaoColcheia);
+
+        setTimeout(() => {
+          destacarNota3D(idx);
+          atualizarLogMatricialPasso(idx);
+        }, idx * duracaoColcheia * 1000);
+      });
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerText = "▶ Tocar Violoncelo";
+      }, (coordenadasPaz.length * duracaoColcheia + 0.2) * 1000);
+    }
+
+    function atualizarLogMatricialPasso(idx) {
+      const p = coordenadasPaz[idx];
+      const log = document.getElementById('logMatriz');
+
+      let htmlMatriz = `<b>[Passo ${p.indice}] Nota ${p.notaNome} (Original: ${p.freqHz} Hz &rarr; Kerr/Lorentz: ${p.freqRelativisticaHz} Hz)</b><br>`;
+      htmlMatriz += `Fator de Lorentz &gamma;: <b>${p.gammaLorentz}</b> | Arraste Kerr &Omega;: <b>${p.omegaKerr} rad</b><br>`;
+      htmlMatriz += `Coordenadas Kerr 3D (X, Y, Z): <b>(${p.coordX}, ${p.coordY}, ${p.coordZ})</b><br>`;
+      htmlMatriz += `Aproximação &pi;_Paz: <b>${p.piPaz}</b><br>`;
+      htmlMatriz += `--------------------------------------------------------<br>`;
+
+      log.innerHTML = htmlMatriz + log.innerHTML;
+    }
+
+    function renderizarPartituraBach(notasFormatadas) {
+      const divPartitura = document.getElementById('partitura');
+      divPartitura.innerHTML = '';
+
+      const { Factory, StaveNote, Accidental } = Vex.Flow;
+      const vf = new Factory({
+        renderer: { elementId: 'partitura', width: 620, height: 140 }
+      });
+
+      const score = vf.EasyScore();
+      const system = vf.System();
+
+      const vexNotes = notasFormatadas.map(item => {
+        const [pitch, octave] = item.nota.split('/');
+        let note = new StaveNote({
+          clef: 'treble',
+          keys: [`${pitch}/${octave}`],
+          duration: item.duracao
+        });
+
+        if (pitch.includes('#')) {
+          note.addModifier(new Accidental('#'));
+        } else if (pitch.includes('b')) {
+          note.addModifier(new Accidental('b'));
+        }
+
+        return note;
+      });
+
+      system.addStave({
+        voices: [vf.Voice().addTickables(vexNotes)]
+      })
+      .addClef('treble')
+      .addTimeSignature('4/4');
+
+      vf.draw();
+    }
+
+    function executarAlgoritmo() {
+      const offset = parseInt(document.getElementById('transposicao').value);
+
+      freqsTemaAtuais = TEMA_BACH.map(item => notaParaFrequencia(item.nota, offset));
+      coordenadasPaz = mpazKerrLorentzEngine(freqsTemaAtuais);
+
+      const notasProcessadas = coordenadasPaz.map((p, i) => {
+        return {
+          nota: p.notaNome,
+          duracao: TEMA_BACH[i].duracao
+        };
+      });
+
+      renderizarPartituraBach(notasProcessadas);
+      initThreeJS();
+
+      const log = document.getElementById('logMatriz');
+      log.innerHTML = `<b>=== SISTEMA KERR-LORENTZ-MPAZ PRONTO ===</b><br>Clique em "▶ Tocar Violoncelo" para ouvir as notas sintetizadas em tempo real.`;
+
+      if (window.MathJax) MathJax.typeset();
+    }
+
+    window.onload = executarAlgoritmo;
+  </script>
+</body>
+</html>

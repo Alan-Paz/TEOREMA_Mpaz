@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Modelo MPaz - Lousa Física & Cosmologia Kerr 3D</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      width: 460px;
+      background: #111827;
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 10px;
+      z-index: 10;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+      overflow-y: auto;
+    }
+
+    h1 { font-size: 1rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+    h2 { font-size: 0.8rem; color: #94a3b8; font-weight: 400; }
+
+    .control-group {
+      background: #1f2937;
+      padding: 8px 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .btn-row { display: flex; gap: 6px; }
+
+    label { font-size: 0.75rem; font-weight: 600; color: #f3f4f6; }
+
+    select, input[type="range"], input[type="number"] {
+      width: 100%;
+      padding: 5px;
+      background: #374151;
+      border: 1px solid #4b5563;
+      color: #fff;
+      border-radius: 4px;
+      outline: none;
+      font-size: 0.8rem;
+    }
+
+    .value-display { font-size: 0.7rem; color: #38bdf8; text-align: right; }
+
+    button {
+      flex: 1;
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 8px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 0.75rem;
+    }
+
+    button:hover { background: #0369a1; }
+    button.stop-btn { background: #dc2626; }
+    button.stop-btn:hover { background: #b91c1c; }
+
+    #blackboard-container {
+      background: #06140f;
+      border: 2px solid #27372b;
+      border-radius: 6px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #math-panel {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.7rem;
+      color: #38bdf8;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .math-row { display: flex; justify-content: space-between; }
+    .math-val { color: #facc15; }
+
+    #main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+    }
+
+    #plane-2d-container {
+      width: 30%;
+      background: #0d1322;
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      position: relative;
+    }
+
+    #viewport-3d { flex: 1; position: relative; }
+    canvas { border-radius: 6px; }
+
+    .plane-title {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 0.75rem;
+      color: #38bdf8;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+      z-index: 5;
+    }
+
+    #legend {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid #374151;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    #score-container {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 85px;
+      overflow: hidden;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div>
+      <h1>Lousa Cosmológica & MPaz</h1>
+      <h2>Malha Espaço-Tempo, Buraco Negro Kerr & Órbitas NASA</h2>
+    </div>
+
+    <div class="control-group">
+      <label>Controle de Tempo Simulado:</label>
+      <div class="btn-row">
+        <button id="time-play-btn">▶ Play</button>
+        <button id="time-pause-btn" class="stop-btn">⏸ Pausar</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label for="theta-input">Ângulo Orbital ($\theta$):</label>
+      <input type="number" id="theta-input" min="0" max="360" step="1" value="0">
+    </div>
+
+    <div class="control-group">
+      <label for="transpose-select">Transposição Musical:</label>
+      <select id="transpose-select">
+        <option value="0">Original (Sol Maior / G)</option>
+        <option value="2">Transpor +2 Semitons (Lá Maior / A)</option>
+        <option value="5">Transpor +5 Semitons (Dó Maior / C)</option>
+        <option value="-2">Transpor -2 Semitons (Fá Maior / F)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="asymmetry-range">Deformação Gravitacional ($\mathbf{A}$):</label>
+      <input type="range" id="asymmetry-range" min="0" max="1" step="0.01" value="0.3">
+      <div class="value-display" id="asymmetry-val">Fator: 0.30</div>
+    </div>
+
+    <div class="control-group">
+      <button id="play-audio-btn">▶ Reproduzir Áudio</button>
+    </div>
+
+    <label>Lousa Interativa (Giz Digital & Equações):</label>
+    <div id="blackboard-container">
+      <canvas id="chalk-canvas" width="400" height="260"></canvas>
+    </div>
+
+    <div id="math-panel">
+      <div class="math-row"><span>Nave NASA:</span><span class="math-val" id="m-ship-target">Em Órbita da Terra</span></div>
+      <div class="math-row"><span>Métrica de Kerr (Horizonte):</span><span class="math-val" id="m-kerr">r_+ = M + √(M² - a²)</span></div>
+      <div class="math-row"><span>Deformação Espaço-Tempo:</span><span class="math-val" id="m-warp">g_00 = -(1 - 2Mr/ρ²)</span></div>
+      <div class="math-row"><span>Aceleração Gravitacional:</span><span class="math-val" id="m-grav">g = GM / r²</span></div>
+      <div class="math-row"><span>Recorrência MPaz em Órbita:</span><span class="math-val" id="m-vec-paz">[1.30, 0.39]</span></div>
+    </div>
+
+    <label>Partitura Transposta:</label>
+    <div id="score-container">
+      <div id="paper"></div>
+    </div>
+  </div>
+
+  <div id="main-container">
+    <div id="plane-2d-container">
+      <div class="plane-title">Projeção 2D: Círculo & Métrica</div>
+      <canvas id="canvas-2d" width="260" height="260"></canvas>
+    </div>
+
+    <div id="viewport-3d">
+      <div class="plane-title">Espaço-Tempo 3D: Terra, Lua, Marte, Nave NASA & Buraco Negro Kerr</div>
+      <div id="legend">
+        <div class="legend-item"><div class="dot" style="background:#38bdf8"></div> Terra & Lua</div>
+        <div class="legend-item"><div class="dot" style="background:#ef4444"></div> Marte</div>
+        <div class="legend-item"><div class="dot" style="background:#ffffff"></div> Nave NASA (Órbita)</div>
+        <div class="legend-item"><div class="dot" style="background:#facc15"></div> Buraco Negro Kerr (Distante)</div>
+        <div class="legend-item"><div class="dot" style="background:#34d399"></div> Malha Espaço-Tempo</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const notesBachOriginal = [
+      { key: "g/4", duration: "q", pitchClass: 7 },
+      { key: "a/4", duration: "8", pitchClass: 9 },
+      { key: "b/4", duration: "8", pitchClass: 11 },
+      { key: "c/5", duration: "q", pitchClass: 0 },
+      { key: "d/5", duration: "q", pitchClass: 2 },
+      { key: "g/4", duration: "q", pitchClass: 7 },
+      { key: "g/4", duration: "q", pitchClass: 7 }
+    ];
+
+    const pitchNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    function transposeKey(keyStr, semitones) {
+      const parts = keyStr.split('/');
+      const name = parts[0].toUpperCase();
+      let octave = parseInt(parts[1]);
+      let basePitch = pitchNames.indexOf(name);
+      if (basePitch === -1) {
+        if (name.includes("B")) basePitch = pitchNames.indexOf(name[0]) - 1;
+        if (name.includes("#")) basePitch = pitchNames.indexOf(name[0]) + 1;
+      }
+      let newPitch = basePitch + semitones;
+      while (newPitch >= 12) { newPitch -= 12; octave++; }
+      while (newPitch < 0) { newPitch += 12; octave--; }
+      let noteName = pitchNames[newPitch].toLowerCase();
+      if (noteName.length > 1) noteName = noteName[0] + "#";
+      return { key: `${noteName}/${octave}`, pitchClass: newPitch, octave: octave };
+    }
+
+    function renderScore(semitones) {
+      const div = document.getElementById("paper");
+      div.innerHTML = "";
+      const { Renderer, Stave, StaveNote, Accidental, Formatter } = Vex.Flow;
+      const renderer = new Renderer(div, Renderer.Backends.SVG);
+      renderer.resize(260, 75);
+      const context = renderer.getContext();
+      const stave = new Stave(5, 0, 240);
+      stave.addClef("treble").addTimeSignature("3/4");
+      stave.setContext(context).draw();
+
+      const vexNotes = notesBachOriginal.map(note => {
+        const transposed = transposeKey(note.key, semitones);
+        const staveNote = new StaveNote({ clef: "treble", keys: [transposed.key], duration: note.duration });
+        if (transposed.key.includes("#")) staveNote.addModifier(new Accidental("#"));
+        return staveNote;
+      });
+      Formatter.FormatAndDraw(context, stave, vexNotes);
+    }
+
+    let angleParam = 0;
+    let isTimeRunning = true;
+    let currentAsymmetry = 0.3;
+    let currentSemitones = 0;
+
+    // --- LOUSA ANIMADA (CANVAS GIZ DIGITAL) ---
+    const chalkCanvas = document.getElementById('chalk-canvas');
+    const chalkCtx = chalkCanvas.getContext('2d');
+    let chalkProgress = 0;
+
+    function drawChalkBoard() {
+      chalkCtx.clearRect(0, 0, chalkCanvas.width, chalkCanvas.height);
+      chalkCtx.strokeStyle = "rgba(240, 240, 240, 0.85)";
+      chalkCtx.fillStyle = "rgba(240, 240, 240, 0.85)";
+      chalkCtx.lineWidth = 1.2;
+      chalkCtx.font = "11px 'Courier New', monospace";
+
+      if (isTimeRunning) chalkProgress = (chalkProgress + 0.005) % 1;
+
+      const p = chalkProgress;
+      const cosVal = Math.cos(angleParam).toFixed(2);
+      const pazRec = (1 + currentAsymmetry * Math.sin(3 * angleParam)).toFixed(2);
+
+      // Moldura Matriz Principal
+      chalkCtx.beginPath();
+      chalkCtx.moveTo(10, 10); chalkCtx.lineTo(5, 10);
+      chalkCtx.lineTo(5, 250); chalkCtx.lineTo(10, 250);
+      chalkCtx.moveTo(390, 10); chalkCtx.lineTo(395, 10);
+      chalkCtx.lineTo(395, 250); chalkCtx.lineTo(390, 250);
+      chalkCtx.stroke();
+
+      if (p > 0.05) {
+        chalkCtx.fillStyle = "#38bdf8";
+        chalkCtx.fillText(`• Métrica de Kerr (Buraco Negro em Rotação):`, 12, 25);
+        chalkCtx.fillText(`  ds² = -(1 - 2Mr/ρ²)dt² - (4Mar sin²θ/ρ²)dt dφ + ...`, 12, 40);
+      }
+
+      if (p > 0.25) {
+        chalkCtx.fillStyle = "#facc15";
+        chalkCtx.fillText(`• Poço Gravitacional e Deformação da Malha:`, 12, 60);
+        chalkCtx.fillText(`  z_mesh(r) = -G·M / (r² + ε)  [Curvatura MPaz]`, 12, 75);
+      }
+
+      if (p > 0.45) {
+        chalkCtx.fillStyle = "#34d399";
+        chalkCtx.fillText(`• Nave NASA (Trajetória de Transferência):`, 12, 95);
+        chalkCtx.fillText(`  Órbita Terra -> Lua -> Marte (Kepler & MPaz)`, 12, 110);
+      }
+
+      if (p > 0.65) {
+        chalkCtx.fillStyle = "#fb923c";
+        chalkCtx.fillText(`• Vetor Recorrência MPaz: V_paz = [${pazRec}, ${(cosVal*pazRec).toFixed(2)}]`, 12, 130);
+        chalkCtx.fillText(`  Relatividade de Einstein: G_μν = 8πG/c⁴ T_μν`, 12, 145);
+      }
+
+      if (p > 0.85) {
+        chalkCtx.fillStyle = "#a78bfa";
+        chalkCtx.fillText(`• Múltiplas Galáxias & Campo Estelar Ativo`, 12, 165);
+        chalkCtx.fillText(`  Matriz Cosmológica Final Resolvida ∎`, 12, 180);
+      }
+    }
+
+    // --- CANVAS 2D ---
+    const canvas2D = document.getElementById('canvas-2d');
+    const ctx2D = canvas2D.getContext('2d');
+    const cx = canvas2D.width / 2;
+    const cy = canvas2D.height / 2;
+    const radius = 70;
+
+    function drawPlane2D() {
+      ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+
+      ctx2D.strokeStyle = '#334155';
+      ctx2D.lineWidth = 1;
+      ctx2D.beginPath();
+      ctx2D.moveTo(0, cy); ctx2D.lineTo(canvas2D.width, cy);
+      ctx2D.moveTo(cx, 0); ctx2D.lineTo(cx, canvas2D.height);
+      ctx2D.stroke();
+
+      ctx2D.strokeStyle = '#00d2ff';
+      ctx2D.lineWidth = 1.5;
+      ctx2D.beginPath();
+      for (let a = 0; a <= Math.PI * 2; a += 0.02) {
+        const rDeformed = radius * (1 + currentAsymmetry * Math.sin(3 * a));
+        const x = cx + rDeformed * Math.cos(a);
+        const y = cy - rDeformed * Math.sin(a);
+        if (a === 0) ctx2D.moveTo(x, y); else ctx2D.lineTo(x, y);
+      }
+      ctx2D.closePath();
+      ctx2D.stroke();
+
+      const px = cx + radius * Math.cos(angleParam);
+      const py = cy - radius * Math.sin(angleParam);
+      ctx2D.fillStyle = '#facc15';
+      ctx2D.beginPath(); ctx2D.arc(px, py, 4, 0, Math.PI * 2); ctx2D.fill();
+    }
+
+    // --- THREE.JS SIMULAÇÃO 3D COSMOLÓGICA ---
+    const viewport3D = document.getElementById('viewport-3d');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x05070f);
+
+    const camera = new THREE.PerspectiveCamera(45, viewport3D.clientWidth / viewport3D.clientHeight, 0.1, 2000);
+    camera.position.set(0, 45, 90);
+
+    const renderer3D = new THREE.WebGLRenderer({ antialias: true });
+    renderer3D.setSize(viewport3D.clientWidth, viewport3D.clientHeight);
+    viewport3D.appendChild(renderer3D.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer3D.domElement);
+    controls.enableDamping = true;
+
+    // Iluminação
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const sunLight = new THREE.PointLight(0xffffff, 1.8, 500);
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+
+    // 1. Campo de Estrelas e Galáxias Distantes
+    function createCosmos() {
+      const starsGeo = new THREE.BufferGeometry();
+      const count = 3000;
+      const positions = new Float32Array(count * 3);
+      for (let i = 0; i < count * 3; i += 3) {
+        positions[i] = (Math.random() - 0.5) * 800;
+        positions[i+1] = (Math.random() - 0.5) * 800;
+        positions[i+2] = (Math.random() - 0.5) * 800;
+      }
+      starsGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.8 });
+      scene.add(new THREE.Points(starsGeo, starsMat));
+
+      // Galáxias espirais distantes
+      for (let g = 0; g < 3; g++) {
+        const galGeo = new THREE.BufferGeometry();
+        const galCount = 800;
+        const galPos = new Float32Array(galCount * 3);
+        const gx = (Math.random() - 0.5) * 500;
+        const gy = (Math.random() - 0.5) * 200 + 100;
+        const gz = -300 - Math.random() * 200;
+
+        for (let i = 0; i < galCount; i++) {
+          const r = Math.random() * 25;
+          const theta = Math.random() * Math.PI * 6;
+          galPos[i*3] = gx + r * Math.cos(theta);
+          galPos[i*3+1] = gy + (Math.random() - 0.5) * 3;
+          galPos[i*3+2] = gz + r * Math.sin(theta);
+        }
+        galGeo.setAttribute('position', new THREE.BufferAttribute(galPos, 3));
+        const galMat = new THREE.PointsMaterial({ color: g === 0 ? 0x38bdf8 : 0xf472b6, size: 0.9, transparent: true, opacity: 0.6 });
+        scene.add(new THREE.Points(galGeo, galMat));
+      }
+    }
+
+    // 2. Malha Espaço-Tempo Deformável
+    let spaceMesh;
+    const meshGridSize = 80;
+    const meshSegments = 60;
+    const meshGeo = new THREE.PlaneGeometry(meshGridSize, meshGridSize, meshSegments, meshSegments);
+    meshGeo.rotateX(-Math.PI / 2);
+    const meshMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, wireframe: true, transparent: true, opacity: 0.4 });
+    spaceMesh = new THREE.Mesh(meshGeo, meshMat);
+    spaceMesh.position.y = -8;
+    scene.add(spaceMesh);
+
+    // 3. Corpos Celestes (Sol, Terra, Lua, Marte)
+    // Sol
+    const sunMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(3, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+    );
+    scene.add(sunMesh);
+
+    // Terra e Lua
+    const earthGroup = new THREE.Group();
+    const earthMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1.4, 32, 32),
+      new THREE.MeshStandardMaterial({ color: 0x2233ff, roughness: 0.4 })
+    );
+    earthGroup.add(earthMesh);
+
+    const moonMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xaaaaaa })
+    );
+    moonMesh.position.set(3, 0, 0);
+    earthGroup.add(moonMesh);
+    scene.add(earthGroup);
+
+    // Marte
+    const marsMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.9, 32, 32),
+      new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.6 })
+    );
+    scene.add(marsMesh);
+
+    // 4. Buraco Negro de Kerr Distante com Disco de Acreção
+    const blackHoleGroup = new THREE.Group();
+    blackHoleGroup.position.set(-80, 10, -120);
+
+    const bhCore = new THREE.Mesh(
+      new THREE.SphereGeometry(5, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x000000 })
+    );
+    blackHoleGroup.add(bhCore);
+
+    const bhAccretion = new THREE.Mesh(
+      new THREE.RingGeometry(6, 16, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffaa00, side: THREE.DoubleSide, transparent: true, opacity: 0.8 })
+    );
+    bhAccretion.rotation.x = Math.PI / 3;
+    blackHoleGroup.add(bhAccretion);
+    scene.add(blackHoleGroup);
+
+    // 5. Nave da NASA
+    const nasaShip = new THREE.Group();
+    const shipBody = new THREE.Mesh(
+      new THREE.ConeGeometry(0.3, 1, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.8 })
+    );
+    shipBody.rotation.x = Math.PI / 2;
+    nasaShip.add(shipBody);
+
+    const shipSolarPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.02, 0.3),
+      new THREE.MeshStandardMaterial({ color: 0x00d2ff })
+    );
+    nasaShip.add(shipSolarPanel);
+    scene.add(nasaShip);
+
+    createCosmos();
+
+    // Áudio
+    let audioCtx = null;
+    let isPlayingAudio = false;
+
+    function pitchToFrequency(pitchClass, octave) {
+      const midiNote = (octave + 1) * 12 + pitchClass;
+      return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    async function playBachSequence() {
+      if (isPlayingAudio) return;
+      isPlayingAudio = true;
+      const btn = document.getElementById('play-audio-btn');
+      btn.innerText = "⏹ Parar Áudio";
+      btn.style.background = "#ef4444";
+
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      let currentTime = audioCtx.currentTime;
+
+      notesBachOriginal.forEach((note) => {
+        const transposed = transposeKey(note.key, currentSemitones);
+        const freq = pitchToFrequency(transposed.pitchClass, transposed.octave);
+        const duration = note.duration === "q" ? 0.6 : 0.3;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, currentTime);
+        gain.gain.setValueAtTime(0, currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration - 0.05);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(currentTime);
+        osc.stop(currentTime + duration);
+        currentTime += duration;
+      });
+
+      setTimeout(() => {
+        isPlayingAudio = false;
+        btn.innerText = "▶ Reproduzir Áudio";
+        btn.style.background = "#0284c7";
+      }, (currentTime - audioCtx.currentTime) * 1000);
+    }
+
+    // Eventos de Interface
+    document.getElementById('time-play-btn').addEventListener('click', () => { isTimeRunning = true; });
+    document.getElementById('time-pause-btn').addEventListener('click', () => { isTimeRunning = false; });
+
+    document.getElementById('theta-input').addEventListener('input', (e) => {
+      const deg = parseFloat(e.target.value) || 0;
+      angleParam = deg * Math.PI / 180;
+    });
+
+    document.getElementById('transpose-select').addEventListener('change', (e) => {
+      currentSemitones = parseInt(e.target.value);
+      renderScore(currentSemitones);
+    });
+
+    document.getElementById('asymmetry-range').addEventListener('input', (e) => {
+      currentAsymmetry = parseFloat(e.target.value);
+      document.getElementById('asymmetry-val').innerText = `Fator: ${currentAsymmetry.toFixed(2)}`;
+    });
+
+    document.getElementById('play-audio-btn').addEventListener('click', playBachSequence);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = viewport3D.clientWidth / viewport3D.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer3D.setSize(viewport3D.clientWidth, viewport3D.clientHeight);
+    });
+
+    renderScore(0);
+
+    // Atualizador Dinâmico da Malha Espaço-Tempo 3D
+    function updateSpaceTimeMesh(earthX, earthZ, marsX, marsZ) {
+      const posAttr = spaceMesh.geometry.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        const x = posAttr.getX(i);
+        const z = posAttr.getZ(i);
+
+        // Poços Gravitacionais da Terra e Marte na Malha
+        const distEarth = Math.sqrt((x - earthX)**2 + (z - earthZ)**2);
+        const distMars = Math.sqrt((x - marsX)**2 + (z - marsZ)**2);
+        const distSun = Math.sqrt(x**2 + z**2);
+
+        const depthSun = -12 / (1 + distSun * 0.2);
+        const depthEarth = -6 / (1 + distEarth * 0.4);
+        const depthMars = -4 / (1 + distMars * 0.5);
+
+        const deformation = (depthSun + depthEarth + depthMars) * (1 + currentAsymmetry * 0.5);
+        posAttr.setY(i, deformation);
+      }
+      posAttr.needsUpdate = true;
+    }
+
+    // Loop de Animação
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+
+      if (isTimeRunning) {
+        angleParam += 0.008;
+        document.getElementById('theta-input').value = ((angleParam * 180 / Math.PI) % 360).toFixed(0);
+      }
+
+      const t = angleParam;
+
+      // Órbitas dos Planetas
+      const earthDist = 18;
+      const earthX = earthDist * Math.cos(t * 0.5);
+      const earthZ = earthDist * Math.sin(t * 0.5);
+      earthGroup.position.set(earthX, 0, earthZ);
+      earthMesh.rotation.y += 0.02;
+
+      // Órbita da Lua
+      moonMesh.position.x = 3 * Math.cos(t * 2);
+      moonMesh.position.z = 3 * Math.sin(t * 2);
+
+      // Órbita de Marte
+      const marsDist = 30;
+      const marsX = marsDist * Math.cos(t * 0.25 + 1);
+      const marsZ = marsDist * Math.sin(t * 0.25 + 1);
+      marsMesh.position.set(marsX, 0, marsZ);
+      marsMesh.rotation.y += 0.015;
+
+      // Trajetória da Nave NASA (Transição de Órbita)
+      const phase = (Math.sin(t * 0.3) + 1) / 2; // 0 (Terra) a 1 (Marte)
+      let shipX, shipY, shipZ;
+      let targetLabel = "Em Órbita da Terra";
+
+      if (phase < 0.3) {
+        // Órbita da Terra/Lua
+        shipX = earthX + 4 * Math.cos(t * 3);
+        shipY = 0.5 * Math.sin(t * 3);
+        shipZ = earthZ + 4 * Math.sin(t * 3);
+        targetLabel = "Órbita da Terra / Lua";
+      } else if (phase > 0.7) {
+        // Órbita de Marte
+        shipX = marsX + 2.5 * Math.cos(t * 3);
+        shipY = 0.5 * Math.cos(t * 3);
+        shipZ = marsZ + 2.5 * Math.sin(t * 3);
+        targetLabel = "Órbita de Marte";
+      } else {
+        // Trajetória de Transferência Interplanetária (Hohmann / MPaz)
+        const interpP = (phase - 0.3) / 0.4;
+        shipX = (1 - interpP) * earthX + interpP * marsX;
+        shipY = Math.sin(interpP * Math.PI) * 4;
+        shipZ = (1 - interpP) * earthZ + interpP * marsZ;
+        targetLabel = "Transferência Terra -> Marte";
+      }
+
+      nasaShip.position.set(shipX, shipY, shipZ);
+      nasaShip.rotation.y = t * 2;
+
+      // Buraco Negro de Kerr em Rotação
+      bhAccretion.rotation.z += 0.01;
+
+      // Atualizações de Painéis e Lousa
+      updateSpaceTimeMesh(earthX, earthZ, marsX, marsZ);
+      drawChalkBoard();
+      drawPlane2D();
+
+      document.getElementById('m-ship-target').innerText = targetLabel;
+      document.getElementById('m-vec-paz').innerText = `[${(1 + currentAsymmetry * Math.sin(3*t)).toFixed(2)}, ${(Math.cos(t)*(1 + currentAsymmetry * Math.sin(3*t))).toFixed(2)}]`;
+
+      renderer3D.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
