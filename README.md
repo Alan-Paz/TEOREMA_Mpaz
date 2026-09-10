@@ -7,6 +7,8 @@ Preprint
 September 2026
 https://teoremampaz.pythonanywhere.com" 
 <img width="607" height="317" alt="image" src="https://github.com/user-attachments/assets/ccdaf107-fbdc-4d53-8eea-011520f97351" />
+<img width="1810" height="737" alt="image" src="https://github.com/user-attachments/assets/76c8974d-12a9-4803-9f6b-ed5e97eb14a4" />
+
 
 
 1 Read
