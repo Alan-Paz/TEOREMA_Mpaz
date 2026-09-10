@@ -6,7 +6,7 @@ Tratado sobre a Indexação Algébrica de Sistemas Diatônicos via Matrizes Heli
 Preprint
 September 2026
 <iframe 
-  src="https://pythonanywhere.com" 
+  src="https://teoremampaz.pythonanywhere.com" 
   width="100%" 
   height="600" 
   style="border: none;" 
