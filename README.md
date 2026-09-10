@@ -7,7 +7,15 @@ Preprint
 September 2026
 https://teoremampaz.pythonanywhere.com" 
 <img width="607" height="317" alt="image" src="https://github.com/user-attachments/assets/ccdaf107-fbdc-4d53-8eea-011520f97351" />
+<img width="1900" height="892" alt="image" src="https://github.com/user-attachments/assets/064d0a60-ee91-413e-bd33-f657810ee99e" />
+<img width="1906" height="903" alt="image" src="https://github.com/user-attachments/assets/52effac3-dd26-4145-ae24-be52f4eb12cc" />
+<img width="1917" height="887" alt="image" src="https://github.com/user-attachments/assets/47150343-3ff9-4e7d-89ae-3f1b0456f684" />
+<img width="1917" height="898" alt="image" src="https://github.com/user-attachments/assets/8b65c7d7-6fce-4c5d-a84f-57f42c9766a1" />
+<img width="1476" height="858" alt="image" src="https://github.com/user-attachments/assets/51829300-9c6b-4492-855d-ffcad274e895" />
 <img width="1810" height="737" alt="image" src="https://github.com/user-attachments/assets/76c8974d-12a9-4803-9f6b-ed5e97eb14a4" />
+<img width="1167" height="803" alt="image" src="https://github.com/user-attachments/assets/1571ff8f-73e5-434b-9b3c-c7f8e720f899" />
+
+
 
 
 
